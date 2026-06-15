@@ -761,9 +761,9 @@
     const t = actx.currentTime;
     rumble?.g.gain.setTargetAtTime(wheelNorm*0.06, t, 0.1);
     if (roll) {
-      roll.g.gain.setTargetAtTime(rollNorm*0.06, t, 0.05);
-      roll.bp.frequency.setTargetAtTime(320 + rollNorm*760, t, 0.05);
-      roll.osc.frequency.setTargetAtTime(95 + rollNorm*110, t, 0.05);
+      roll.g.gain.setTargetAtTime(rollNorm*0.045, t, 0.05);
+      roll.bp.frequency.setTargetAtTime(200 + rollNorm*420, t, 0.05);
+      roll.osc.frequency.setTargetAtTime(80 + rollNorm*90, t, 0.05);
       roll.pan.pan.setTargetAtTime(pan, t, 0.05);
     }
   }
@@ -776,28 +776,29 @@
     rumble = roll = null;
   }
   // ball-on-fret clack: bright resonant ping + woody body + click transient, panned
-  function clack(vol, pitch, pan) {
+  function clack(vol, pitch, pan, when) {
     if (!actx) return;
-    const t = actx.currentTime;
+    const t = actx.currentTime + (when || 0);
     const p = panNode(); if (p.pan.setValueAtTime) p.pan.setValueAtTime(pan||0, t); else p.pan.value = pan||0;
     p.connect(master);
-    // resonant ping
-    const o1 = actx.createOscillator(); o1.type='sine'; o1.frequency.setValueAtTime(pitch, t);
-    o1.frequency.exponentialRampToValueAtTime(pitch*0.8, t+0.05);
-    const g1 = actx.createGain(); g1.gain.setValueAtTime(vol, t);
-    g1.gain.exponentialRampToValueAtTime(0.0006, t+0.06);
-    o1.connect(g1); g1.connect(p); o1.start(t); o1.stop(t+0.08);
-    // woody body
-    const o2 = actx.createOscillator(); o2.type='triangle'; o2.frequency.setValueAtTime(pitch*0.5, t);
-    const g2 = actx.createGain(); g2.gain.setValueAtTime(vol*0.7, t);
-    g2.gain.exponentialRampToValueAtTime(0.0006, t+0.035);
-    o2.connect(g2); g2.connect(p); o2.start(t); o2.stop(t+0.05);
-    // click transient
-    const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 1.5 + Math.random();
-    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 2800;
-    const g3 = actx.createGain(); g3.gain.setValueAtTime(vol*0.5, t);
-    g3.gain.exponentialRampToValueAtTime(0.0005, t+0.01);
-    s.connect(hp); hp.connect(g3); g3.connect(p); s.start(t); s.stop(t+0.02);
+    // low woody body — the "tock"
+    const o = actx.createOscillator(); o.type='triangle';
+    o.frequency.setValueAtTime(pitch, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(70, pitch*0.5), t+0.05);
+    const g = actx.createGain(); g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0006, t+0.08);
+    o.connect(g); g.connect(p); o.start(t); o.stop(t+0.1);
+    // sub thump for body
+    const o2 = actx.createOscillator(); o2.type='sine'; o2.frequency.setValueAtTime(pitch*0.5, t);
+    const g2 = actx.createGain(); g2.gain.setValueAtTime(vol*0.8, t);
+    g2.gain.exponentialRampToValueAtTime(0.0006, t+0.05);
+    o2.connect(g2); g2.connect(p); o2.start(t); o2.stop(t+0.07);
+    // soft woody attack (low-passed click, not tinny)
+    const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.5 + Math.random()*0.4;
+    const bp = actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 800; bp.Q.value = 1.0;
+    const g3 = actx.createGain(); g3.gain.setValueAtTime(vol*0.35, t);
+    g3.gain.exponentialRampToValueAtTime(0.0005, t+0.018);
+    s.connect(bp); bp.connect(g3); g3.connect(p); s.start(t); s.stop(t+0.03);
   }
   // ball dropping home: low woody thud with a touch of room
   function thud() {
@@ -878,7 +879,7 @@
     let radius = R_OUTER, z = 0, vz = 0;
     let phase = 'rim', descT = 0;
     let resultIdx = -1, rideOffset = 0, snapFrom = 0, snapStart = 0;
-    let lastFret = -1, lastTickMs = 0, lastBounceMs = 0, last = performance.now(), t0 = last;
+    let lastFret = 0, lastBounceMs = 0, last = performance.now(), t0 = last;
 
     const baseOff = target*SEG - 90;                     // target pocket on the wheel face
     const capture = () => {                              // ball drops home into the pocket
@@ -904,11 +905,14 @@
         ballVel += ballDecel*dt;                         // magnitude shrinks (ball is negative)
         ballPos += ballVel*dt;
         radius = R_OUTER - 0.012*Math.sin(elapsed/45);
-        const fret = Math.floor(-ballPos / SEG);
-        if (fret !== lastFret && (now - lastTickMs) > 16) {
+        // tick once per pocket the ball passes (catch up if several crossed this frame)
+        const fp = Math.floor(-ballPos / SEG);
+        if (fp > lastFret) {
+          const crossed = Math.min(fp - lastFret, 6);
           const sp = Math.min(1, Math.abs(ballVel)/700);
-          clack(0.04 + sp*0.10, 1300 + sp*1500, panOf(ballPos));
-          lastFret = fret; lastTickMs = now;
+          for (let k = 0; k < crossed; k++)
+            clack(0.05 + sp*0.06, 300 + sp*240, panOf(ballPos), (k/crossed)*dt);
+          lastFret = fp;
         }
         if (ballVel >= -omegaDrop) { phase = 'descend'; descT = 0; }
       } else if (phase === 'descend') {
@@ -917,7 +921,7 @@
         ballPos += ballVel*dt;
         const q = Math.min(1, descT/0.55);               // ~0.55s drift down the bowl
         radius = R_OUTER + (R_LAND - R_OUTER)*q*q;
-        if (q >= 1) { phase = 'bounce'; z = 0; vz = Math.sqrt(2*Gv*firstH); clack(0.14, 1000, panOf(ballPos)); }
+        if (q >= 1) { phase = 'bounce'; z = 0; vz = Math.sqrt(2*Gv*firstH); clack(0.16, 360, panOf(ballPos)); }
       } else if (phase === 'bounce') {
         // KEY: the ball keeps travelling & rattling while it bounces. A gentle pull keeps
         // it near the (fair, pre-drawn) pocket; random fret hits scatter it around — so it
@@ -934,7 +938,7 @@
           vz = impact * e_v * (0.75 + Math.random()*0.5);
           ballVel += (Math.random()*2-1) * Math.min(90, impact*0.12 + 25); // random ricochet
           if (impact > 70 && now - lastBounceMs > 38) {  // clack only on real hops
-            clack(Math.min(0.22, 0.05 + impact/2600), 1150 + Math.random()*500, panOf(ballPos));
+            clack(Math.min(0.24, 0.06 + impact/2600), 280 + Math.random()*160, panOf(ballPos));
             lastBounceMs = now;
           }
           if (vz < 25 && Math.abs(gap) < SEG*0.5) capture();
