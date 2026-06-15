@@ -814,6 +814,25 @@
     o.connect(g); g.connect(master); o.start(t); o.stop(t+0.36);
   }
 
+  // ---- croupier call-out: speak the winning number in French (female voice) ----
+  function frenchVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const vs = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+    if (!vs.length) return null;
+    const fem = /(am[ée]lie|audrey|virginie|marie|julie|l[ée]a|chlo[ée]|c[ée]line|sandrine|femme|female|google\s*fran)/i;
+    return vs.find(v => fem.test(v.name)) || vs.find(v => /female/i.test(v.name)) || vs[0];
+  }
+  function speakWinner(number) {
+    if (!soundOn || !('speechSynthesis' in window)) return;
+    const color = number === 0 ? '' : (RED.has(number) ? 'rouge' : 'noir');
+    const parity = number === 0 ? '' : (number % 2 === 0 ? 'pair' : 'impair');
+    const text = number === 0 ? 'zéro' : `${number}, ${color}, ${parity}`;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR'; u.rate = 0.9; u.pitch = 1.2;     // a touch higher = feminine
+    const v = frenchVoice(); if (v) u.voice = v;
+    try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (_) {}
+  }
+
   /* ============ Random (fair) ============ */
   function randIndex(max) {
     if (window.crypto?.getRandomValues) {
@@ -1000,6 +1019,7 @@
     historyList.prepend(li);
 
     if (number === 0) celebrate();
+    setTimeout(() => speakWinner(number), 350);          // croupier announces the result
 
     spinning = false; spinBtn.disabled = false;
   }
@@ -1161,6 +1181,12 @@
   window.addEventListener('resize', park);
   window.addEventListener('load', park);
   park();
+
+  // warm up the speech voice list (loads asynchronously in some browsers)
+  if ('speechSynthesis' in window) {
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+  }
 </script>
 </body>
 </html>
