@@ -516,7 +516,6 @@
 
     <div class="stage">
       <div class="scene">
-        <div class="pointer"></div>
         <div class="wheel-stage">
           <div class="bowl"></div>
           <div class="wheel-face" id="wheelFace"></div>
@@ -851,88 +850,107 @@
 
     const target = randIndex(N);
     const number = ORDER[target];
+    const panOf = a => Math.max(-1, Math.min(1, Math.cos(a*Math.PI/180))) * 0.85;
+    const easeInQuad = q => q*q;
 
     // character of this spin, driven by the chosen force
     const T = cfg.T();
     const wheelTurns = cfg.wheel();
     const ballTurns  = cfg.ball();
 
-    const wheelEnd  = ((-target*SEG) % 360 + 360) % 360;   // winning pocket -> top
-    const wheelTotal = wheelTurns*360 + wheelEnd;
-    const ballEnd   = -90;                                  // top (under pointer)
-    const ballTotal = ballTurns*360;
+    // the wheel comes to rest at an ARBITRARY angle — so the ball can land anywhere
+    const wheelTotal = wheelTurns*360 + Math.random()*360;
+    const wheelFinal = wheelTotal;                         // easeOut(1) = 1
+    const pocketOffset = target*SEG - 90;                  // target pocket on the wheel face
+    const ballSettleAbs = wheelFinal + pocketOffset;       // absolute angle the ball rests at
+    const ballSpin = ballTurns*360;                        // counter-rotates down to settle
 
-    // ---- phase timing ----
-    const tTrack  = T * (0.46 + Math.random()*0.06);       // ball circles the rim
-    const tSettle = T * 0.05;                              // locked in pocket
-    const tBounce = T - tTrack - tSettle;                  // gravity bounce-down
-
-    // ---- gravity bounce schedule: heights shrink, intervals shorten (real physics) ----
+    // ---- REAL gravity bounce schedule (true airtimes -> snappy, Earth-like) ----
+    const G = 4200;                                        // px/s^2, gravity (tuned)
     const restitution = cfg.rest();
-    let H = R * cfg.H();                                    // first bounce height (px)
-    const heights = [];
-    while (H > R*0.006 && heights.length < 18) { heights.push(H); H *= restitution; }
-    // a bounce's airtime ~ sqrt(height); scale the set to fill the bounce window
-    const raw = heights.map(h => Math.sqrt(h));
-    const rawSum = raw.reduce((a,b)=>a+b, 0);
-    const durs = raw.map(d => d / rawSum * tBounce);
-    const starts = []; let acc = 0;
-    for (const d of durs) { starts.push(acc); acc += d; }
+    let H = R * cfg.H();                                   // first bounce height (px)
+    const heights = [], airtimes = [];
+    while (H > R*0.004 && heights.length < 24) {
+      heights.push(H);
+      airtimes.push(2 * Math.sqrt(2*H / G));              // seconds in the air for this hop
+      H *= restitution;
+    }
+    const tBounceMs = airtimes.reduce((a,b)=>a+b, 0) * 1000;
+    const bStart = []; let accB = 0;
+    for (const a of airtimes) { bStart.push(accB); accB += a*1000; }
+    // random sideways ricochet off each deflector/fret, decaying so it still lands true
+    const jit = heights.map((_,i) => (Math.random()*2-1) * SEG * 1.35 * Math.pow(1 - i/heights.length, 1.3));
+    jit.push(0, 0);
+
+    // the whole drop+settle is SHORT and realistic; the rest of T is the rim ride
+    const tDescentMs = 800 + Math.random()*700;            // drifting down the bowl
+    const tSettleMs  = 350;
+    const tFallMs    = tDescentMs + tBounceMs + tSettleMs;
+    const dropStart  = Math.max(T*0.42, T - tFallMs);      // ms: long anticipation, then drop
+    const R_MID = 0.82;                                    // deflector ring radius
 
     const t0 = performance.now();
-    let lastFret = -1, lastTickMs = 0, lastSeg = -1;
+    let lastFret = -1, lastTickMs = 0, lastSeg = -1, lastDefl = -1;
 
     function frame(now) {
       const elapsed = now - t0;
       let p = elapsed / T; if (p > 1) p = 1;
-      const decel = Math.pow(1-p, 4);                      // 1 -> 0, speed envelope
+      const decel = Math.pow(1-p, 4);
 
-      // ---- wheel ----
       wheelFace.style.transform = `rotateZ(${wheelTotal * easeOutQuint(p)}deg)`;
 
-      // ---- ball angle (decelerating, COUNTER-rotating vs the wheel) ----
-      const ballAngle = ballEnd + ballTotal*(1 - easeOutQuint(p));
-      const pan = Math.max(-1, Math.min(1, Math.cos(ballAngle*Math.PI/180))) * 0.85;
-
+      // base ball angle: counter-rotates, decelerating toward the settle point
+      let ballAngle = ballSettleAbs + ballSpin*(1 - easeOutQuint(p));
       let radius = R_OUTER, lift = 0, rollNorm = 0;
 
-      if (elapsed < tTrack) {
-        // riding the rim with a faint wobble — continuous rolling whirr + fret rattle
+      if (elapsed < dropStart) {
+        // ---- riding the rim, slowing down ----
         radius = R_OUTER - 0.012*Math.sin(elapsed/45);
         rollNorm = decel;
         const fret = Math.floor(-ballAngle / SEG);
-        if (fret !== lastFret && (now - lastTickMs) > 20) {
-          const sp = 1 - elapsed/tTrack;                  // 1..0
-          clack(0.05 + sp*0.11, 1500 + sp*1300, pan);
+        if (fret !== lastFret && (now - lastTickMs) > 18) {
+          const sp = 1 - elapsed/dropStart;
+          clack(0.05 + sp*0.10, 1500 + sp*1300, panOf(ballAngle));
           lastFret = fret; lastTickMs = now;
         }
-      } else if (elapsed < tTrack + tBounce) {
-        // spiral inward while bouncing under gravity
-        const bt = elapsed - tTrack;
-        const q  = bt / tBounce;
-        radius = R_OUTER + (R_RING - R_OUTER)*easeOutCubic(q);
-        rollNorm = decel * Math.max(0, 1 - q/0.4);        // whirr fades as it leaves the rim
-        let seg = 0;
-        while (seg < starts.length-1 && bt >= starts[seg+1]) seg++;
-        const tau = Math.min(1, (bt - starts[seg]) / durs[seg]);
-        lift = 4 * heights[seg] * tau * (1 - tau);        // parabolic arc
-        if (seg !== lastSeg) {                            // a new bounce just landed
-          const v = 0.18 * Math.pow(restitution, seg) + 0.05;
-          clack(Math.max(v, 0.05), 1300 - seg*30, pan);
-          lastSeg = seg;
-        }
       } else {
-        radius = R_RING; lift = 0;                        // resting in the pocket
+        const fall = elapsed - dropStart;                 // ms into the fall
+        if (fall < tDescentMs) {
+          // ---- centripetal force fades: ball spirals down the bowl to the deflectors ----
+          const q = fall / tDescentMs;
+          radius = R_OUTER + (R_MID - R_OUTER)*easeInQuad(q);
+          rollNorm = decel * Math.max(0, 1 - q);
+          const d = Math.floor(-ballAngle / (SEG*2));
+          if (d !== lastDefl) { clack(0.11, 1050, panOf(ballAngle)); lastDefl = d; }
+        } else if (fall < tDescentMs + tBounceMs) {
+          // ---- bouncing across the deflectors & frets onto the wheel head ----
+          const bt = fall - tDescentMs;
+          let seg = 0;
+          while (seg < bStart.length-1 && bt >= bStart[seg+1]) seg++;
+          const tau = Math.min(1, (bt - bStart[seg]) / (airtimes[seg]*1000));
+          lift = 4 * heights[seg] * tau * (1 - tau);      // real parabolic hop
+          const prog = seg / (heights.length - 1 || 1);
+          radius = R_MID + (R_RING - R_MID) * Math.min(1, prog*1.25);
+          // smooth random ricochet between pockets, settling to true at the end
+          ballAngle += jit[seg] + (jit[seg+1]-jit[seg])*tau;
+          if (seg !== lastSeg) {
+            clack(Math.max(0.05, 0.22*Math.pow(restitution,seg)+0.05), 1250 - seg*22, panOf(ballAngle));
+            lastSeg = seg;
+          }
+        } else {
+          // ---- settled: resting in the pocket, riding with the wheel ----
+          radius = R_RING; lift = 0;
+        }
       }
 
       setBall(ballAngle, radius, lift);
-      updateBeds(decel, rollNorm, pan);
+      updateBeds(decel, rollNorm, panOf(ballAngle));
 
       if (p < 1) {
         requestAnimationFrame(frame);
       } else {
-        setBall(ballEnd, R_RING, 0);
-        clack(0.1, 900, pan);
+        setBall(ballSettleAbs, R_RING, 0);
+        clack(0.1, 900, panOf(ballSettleAbs));
         thud();
         stopBeds();
         finish(number);
