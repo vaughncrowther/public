@@ -81,48 +81,42 @@
 
   .scene {
     width: var(--wheel);
-    height: calc(var(--wheel) * 0.78);
+    height: calc(var(--wheel) * 0.70);
     position: relative;
-    perspective: 1400px;
-    perspective-origin: 50% 38%;
   }
 
-  /* tilted bowl plane */
-  .tilt {
+  /* wheel assembly squished into an ellipse = a bowl seen from an angle */
+  .wheel-stage {
     position: absolute;
-    inset: 0;
-    margin: auto;
-    width: var(--wheel);
-    height: var(--wheel);
-    transform-style: preserve-3d;
-    transform: rotateX(58deg);
-    top: 50%;
+    left: 50%; top: 50%;
+    width: var(--wheel); height: var(--wheel);
+    transform: translate(-50%, -50%) scaleY(0.55);
     transform-origin: center;
-    margin-top: calc(var(--wheel) * -0.5);
   }
 
   /* outer fixed bowl / table rim (does not spin) */
   .bowl {
     position: absolute;
-    inset: -7%;
+    inset: -8%;
     border-radius: 50%;
     background:
-      radial-gradient(circle at 50% 38%, #6b4e1c 0%, #4a3413 36%, #2a1c08 64%, #1a1206 100%);
+      radial-gradient(circle at 50% 36%, #6b4e1c 0%, #4a3413 34%, #2a1c08 62%, #160f04 100%);
     box-shadow:
       0 0 0 2px var(--gold-dark),
-      inset 0 0 60px rgba(0,0,0,.8);
+      0 22px 60px rgba(0,0,0,.6),
+      inset 0 0 70px rgba(0,0,0,.85);
   }
   .bowl::after {
     content: "";
     position: absolute;
-    inset: 9%;
+    inset: 8%;
     border-radius: 50%;
-    background: radial-gradient(circle at 50% 40%, rgba(255,235,170,.12), rgba(0,0,0,.55) 70%);
+    background: radial-gradient(circle at 50% 38%, rgba(255,235,170,.14), rgba(0,0,0,.55) 72%);
     box-shadow:
       inset 0 0 0 6px #2a1c08,
       inset 0 0 0 9px var(--gold),
       inset 0 0 0 13px #2a1c08,
-      inset 0 14px 40px rgba(0,0,0,.7);
+      inset 0 16px 44px rgba(0,0,0,.7);
   }
 
   /* spinning wheel face */
@@ -130,9 +124,8 @@
     position: absolute;
     inset: 4%;
     border-radius: 50%;
-    transform-style: preserve-3d;
     will-change: transform;
-    filter: drop-shadow(0 0 14px rgba(0,0,0,.6));
+    filter: drop-shadow(0 0 14px rgba(0,0,0,.55));
   }
   .wheel-face svg { width: 100%; height: 100%; display: block; }
 
@@ -141,12 +134,13 @@
     position: absolute;
     top: 50%; left: 50%;
     width: 26%; height: 26%;
-    transform: translate(-50%, -50%) translateZ(36px);
+    transform: translate(-50%, -50%);
     border-radius: 50%;
-    background: radial-gradient(circle at 38% 32%, #fbe6a8, var(--gold) 46%, #6f561a 100%);
+    background: radial-gradient(circle at 38% 30%, #fbe6a8, var(--gold) 46%, #6f561a 100%);
     box-shadow: 0 10px 22px rgba(0,0,0,.6), inset 0 0 16px rgba(0,0,0,.45);
     border: 3px solid #2a1c08;
     display: flex; align-items: center; justify-content: center;
+    z-index: 4;
   }
   .turret::before, .turret::after {
     content: ""; position: absolute; border-radius: 6px;
@@ -160,32 +154,31 @@
     box-shadow: inset 0 0 6px rgba(0,0,0,.5);
   }
 
-  /* ball arm + ball (live in tilted plane) */
-  .ball-arm {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 0; height: 0;
-    transform-style: preserve-3d;
-    will-change: transform;
-  }
+  /* ball layer (NOT squished, so the ball stays a true round sphere) */
+  .ball-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
   .ball {
-    position: absolute;
-    width: calc(var(--wheel) * 0.042);
-    height: calc(var(--wheel) * 0.042);
-    margin: calc(var(--wheel) * -0.021);
+    position: absolute; left: 0; top: 0;
+    width: calc(var(--wheel) * 0.040);
+    height: calc(var(--wheel) * 0.040);
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 30%, #ffffff, #e9e9ec 38%, #b9b9c0 66%, #6f6f78 100%);
-    box-shadow: 0 0 6px rgba(255,255,255,.5);
-    will-change: transform;
+    transform: translate(-50%, -50%);
+    background:
+      radial-gradient(circle at 34% 28%,
+        #ffffff 0%, #f4f4f7 16%, #d2d2da 46%, #9a9aa4 72%, #5c5c64 92%, #3a3a40 100%);
+    box-shadow:
+      inset -2px -3px 5px rgba(0,0,0,.5),
+      inset 2px 2px 4px rgba(255,255,255,.55),
+      0 1px 3px rgba(0,0,0,.4);
+    will-change: left, top;
   }
   .ball-shadow {
-    position: absolute;
-    width: calc(var(--wheel) * 0.05);
-    height: calc(var(--wheel) * 0.05);
-    margin: calc(var(--wheel) * -0.025);
+    position: absolute; left: 0; top: 0;
+    width: calc(var(--wheel) * 0.052);
+    height: calc(var(--wheel) * 0.026);
     border-radius: 50%;
+    transform: translate(-50%, -50%);
     background: radial-gradient(circle, rgba(0,0,0,.5), rgba(0,0,0,0) 70%);
-    will-change: transform;
+    will-change: left, top;
   }
 
   /* pointer */
@@ -398,14 +391,14 @@
     <div class="stage">
       <div class="scene">
         <div class="pointer"></div>
-        <div class="tilt">
+        <div class="wheel-stage">
           <div class="bowl"></div>
           <div class="wheel-face" id="wheelFace"></div>
           <div class="turret"><span></span></div>
-          <div class="ball-arm" id="ballArm">
-            <div class="ball-shadow" id="ballShadow"></div>
-            <div class="ball" id="ball"></div>
-          </div>
+        </div>
+        <div class="ball-layer" id="ballLayer">
+          <div class="ball-shadow" id="ballShadow"></div>
+          <div class="ball" id="ball"></div>
         </div>
       </div>
 
@@ -515,7 +508,6 @@
 
   /* ============ DOM ============ */
   const wheelFace = document.getElementById('wheelFace');
-  const ballArm = document.getElementById('ballArm');
   const ball = document.getElementById('ball');
   const ballShadow = document.getElementById('ballShadow');
   const spinBtn = document.getElementById('spinBtn');
@@ -525,90 +517,102 @@
   const recent = document.getElementById('recent');
   const emptyMsg = document.getElementById('emptyMsg');
 
-  const TILT = 58;                 // matches CSS rotateX
-  const R_OUTER = 0.92;            // ball track radius (fraction of half-wheel)
+  const KY = 0.55;                 // vertical squish (matches CSS scaleY) = bowl angle
+  const R_OUTER = 0.90;            // ball-track radius (fraction of half-wheel)
   const R_RING  = 0.70;            // resting radius in the number ring
+  const ballLayer = document.getElementById('ballLayer');
   let spinning = false, spinCount = 0;
   const counts = { red:0, black:0, green:0 };
+  let cx = 0, cy = 0, R = 300;
 
-  function setBall(angleDeg, radiusFrac, hopPx) {
-    const r = radiusFrac * 0.5 * getWheelPx();
-    ballArm.style.transform = `rotateZ(${angleDeg}deg)`;
-    // counter-rotate so ball faces camera; lift with translateZ for the hop
-    ball.style.transform =
-      `translateX(${r}px) translateZ(${hopPx}px) rotateX(${-TILT}deg)`;
-    ballShadow.style.transform =
-      `translateX(${r}px) translateX(${hopPx*0.35}px) scale(${1 - Math.min(hopPx/120,0.5)})`;
-    ballShadow.style.opacity = (0.55 - Math.min(hopPx/200, 0.4)).toFixed(2);
+  function updateDims() {
+    const r = ballLayer.getBoundingClientRect();
+    cx = r.width/2; cy = r.height/2; R = r.width/2;
   }
-  function getWheelPx() {
-    return document.querySelector('.tilt').getBoundingClientRect().width || 600;
+  // angle in deg (-90 = top), radius fraction, vertical lift in px (gravity)
+  function setBall(angleDeg, radiusFrac, liftPx) {
+    const a = angleDeg * Math.PI/180;
+    const x  = cx + radiusFrac*R*Math.cos(a);
+    const yg = cy + radiusFrac*R*KY*Math.sin(a);   // ground point on the ellipse
+    ball.style.left = x + 'px';
+    ball.style.top  = (yg - liftPx) + 'px';
+    ballShadow.style.left = x + 'px';
+    ballShadow.style.top  = yg + 'px';
+    const sc = Math.max(0.45, 1 - liftPx/(R*0.45));
+    ballShadow.style.transform = `translate(-50%,-50%) scale(${sc})`;
+    ballShadow.style.opacity = (0.5*sc).toFixed(2);
   }
 
   /* ============ Audio (synth, no files) ============ */
-  let actx = null, noiseBuf = null, roll = null, rumble = null, soundOn = true;
+  let actx = null, noiseBuf = null, master = null, rumble = null, soundOn = true;
   function ensureAudio() {
     if (actx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) { soundOn = false; return; }
     actx = new AC();
-    const len = actx.sampleRate * 2;
+    master = actx.createGain();
+    master.gain.value = soundOn ? 0.9 : 0;
+    master.connect(actx.destination);
+    const len = actx.sampleRate * 1.5;
     noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
   }
+  function applyMute() {
+    if (actx && master) master.gain.setTargetAtTime(soundOn ? 0.9 : 0, actx.currentTime, 0.04);
+  }
+  // subtle low wheel hum (NOT broadband — no "rainfall")
   function startBeds() {
     if (!actx) return;
-    // ball rolling: looping noise -> bandpass -> gain
-    roll = {};
-    roll.src = actx.createBufferSource(); roll.src.buffer = noiseBuf; roll.src.loop = true;
-    roll.bp = actx.createBiquadFilter(); roll.bp.type = 'bandpass'; roll.bp.Q.value = 1.2;
-    roll.g = actx.createGain(); roll.g.gain.value = 0;
-    roll.src.connect(roll.bp); roll.bp.connect(roll.g); roll.g.connect(actx.destination);
-    roll.src.start();
-    // wheel rumble: low noise
     rumble = {};
     rumble.src = actx.createBufferSource(); rumble.src.buffer = noiseBuf; rumble.src.loop = true;
-    rumble.lp = actx.createBiquadFilter(); rumble.lp.type = 'lowpass'; rumble.lp.frequency.value = 180;
-    rumble.g = actx.createGain(); rumble.g.gain.value = 0;
-    rumble.src.connect(rumble.lp); rumble.lp.connect(rumble.g); rumble.g.connect(actx.destination);
+    rumble.lp = actx.createBiquadFilter(); rumble.lp.type='lowpass'; rumble.lp.frequency.value=140;
+    rumble.g  = actx.createGain(); rumble.g.gain.value = 0;
+    rumble.src.connect(rumble.lp); rumble.lp.connect(rumble.g); rumble.g.connect(master);
     rumble.src.start();
   }
-  function updateBeds(ballSpeed, wheelSpeed) {
-    if (!actx || !soundOn) return;
-    const bs = Math.min(ballSpeed/22, 1);
-    roll.g.gain.setTargetAtTime(0.05 + bs*0.16, actx.currentTime, 0.05);
-    roll.bp.frequency.setTargetAtTime(700 + bs*2600, actx.currentTime, 0.05);
-    rumble.g.gain.setTargetAtTime(Math.min(wheelSpeed/30,1)*0.10, actx.currentTime, 0.08);
+  function updateBeds(wheelNorm) {
+    if (!actx) return;
+    rumble?.g.gain.setTargetAtTime(wheelNorm*0.06, actx.currentTime, 0.1);
   }
   function stopBeds() {
+    if (!actx || !rumble) return;
+    rumble.g.gain.setTargetAtTime(0, actx.currentTime, 0.25);
+    try { rumble.src.stop(actx.currentTime + 0.7); } catch(e){}
+    rumble = null;
+  }
+  // a single ball-on-fret "clack": woody pitched body + tiny click transient
+  function clack(vol, pitch) {
     if (!actx) return;
-    [roll, rumble].forEach(n => { if (n) { n.g.gain.setTargetAtTime(0, actx.currentTime, 0.2);
-      try { n.src.stop(actx.currentTime + 0.6); } catch(e){} } });
-    roll = rumble = null;
-  }
-  function clack(vol) {
-    if (!actx || !soundOn) return;
     const t = actx.currentTime;
-    const s = actx.createBufferSource(); s.buffer = noiseBuf;
-    s.playbackRate.value = 0.8 + Math.random()*0.6;
-    const bp = actx.createBiquadFilter(); bp.type='bandpass';
-    bp.frequency.value = 1400 + Math.random()*2200; bp.Q.value = 5;
+    const o = actx.createOscillator(); o.type = 'triangle';
+    o.frequency.setValueAtTime(pitch, t);
+    o.frequency.exponentialRampToValueAtTime(pitch*0.55, t+0.03);
     const g = actx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(vol, t+0.002);
-    g.gain.exponentialRampToValueAtTime(0.0008, t+0.045);
-    s.connect(bp); bp.connect(g); g.connect(actx.destination);
-    s.start(t); s.stop(t+0.06);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0006, t+0.04);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.05);
+
+    const s = actx.createBufferSource(); s.buffer = noiseBuf;
+    s.playbackRate.value = 1.5 + Math.random();
+    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 2600;
+    const g2 = actx.createGain();
+    g2.gain.setValueAtTime(vol*0.5, t);
+    g2.gain.exponentialRampToValueAtTime(0.0005, t+0.012);
+    s.connect(hp); hp.connect(g2); g2.connect(master); s.start(t); s.stop(t+0.02);
   }
+  // ball dropping into the pocket: low woody thud
   function thud() {
-    if (!actx || !soundOn) return;
+    if (!actx) return;
     const t = actx.currentTime;
-    const o = actx.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(220,t);
-    o.frequency.exponentialRampToValueAtTime(70,t+0.18);
-    const g = actx.createGain(); g.gain.setValueAtTime(0.25,t);
-    g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
-    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+0.3);
+    const o = actx.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(58, t+0.2);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.32, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.3);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.34);
   }
 
   /* ============ Random (fair) ============ */
@@ -631,6 +635,7 @@
     resultMeta.textContent = 'No more bets — round and round she goes…';
     resultNumber.textContent = '…';
     resultNumber.className = 'result-number num-green';
+    updateDims();
 
     if (soundOn) { ensureAudio(); if (actx?.state === 'suspended') actx.resume(); startBeds(); }
 
@@ -638,71 +643,84 @@
     const number = ORDER[target];
 
     // randomized character of this spin
-    const T = 9000 + Math.random()*4500;                 // 9–13.5s
+    const T = 9500 + Math.random()*4000;                  // ~9.5–13.5s
     const wheelTurns = 4 + Math.floor(Math.random()*3);   // 4–6
     const ballTurns  = 9 + Math.floor(Math.random()*6);   // 9–14 (opposite dir)
-    const bounceCount = 2 + Math.floor(Math.random()*6);  // how much it rattles
-    const bounceAmp   = 14 + Math.random()*26;
 
-    // wheel ends so the winning pocket sits under the top pointer
-    const wheelEnd = ((-target*SEG) % 360 + 360) % 360;
+    const wheelEnd  = ((-target*SEG) % 360 + 360) % 360;   // winning pocket -> top
     const wheelTotal = wheelTurns*360 + wheelEnd;
+    const ballEnd   = -90;                                  // top (under pointer)
+    const ballTotal = ballTurns*360;
 
-    const ballEnd = -90;                                  // top (under pointer)
-    const ballTotal = ballTurns*360;                      // travelled before settling
+    // ---- phase timing ----
+    const tTrack  = T * (0.46 + Math.random()*0.06);       // ball circles the rim
+    const tSettle = T * 0.05;                              // locked in pocket
+    const tBounce = T - tTrack - tSettle;                  // gravity bounce-down
+
+    // ---- gravity bounce schedule: heights shrink, intervals shorten (real physics) ----
+    const restitution = 0.58 + Math.random()*0.12;
+    let H = R * (0.14 + Math.random()*0.07);               // first bounce height (px)
+    const heights = [];
+    while (H > R*0.006 && heights.length < 18) { heights.push(H); H *= restitution; }
+    // a bounce's airtime ~ sqrt(height); scale the set to fill the bounce window
+    const raw = heights.map(h => Math.sqrt(h));
+    const rawSum = raw.reduce((a,b)=>a+b, 0);
+    const durs = raw.map(d => d / rawSum * tBounce);
+    const starts = []; let acc = 0;
+    for (const d of durs) { starts.push(acc); acc += d; }
 
     const t0 = performance.now();
-    let lastFret = 0, lastTick = 0, prevBall = 0;
+    let lastFret = -1, lastTickMs = 0, lastSeg = -1;
 
     function frame(now) {
-      let p = (now - t0) / T;
-      if (p > 1) p = 1;
+      const elapsed = now - t0;
+      let p = elapsed / T; if (p > 1) p = 1;
+      const decel = Math.pow(1-p, 4);                      // 1 -> 0, speed envelope
 
       // ---- wheel ----
-      const wEase = easeOutQuint(p);
-      const wheelAngle = wheelTotal * wEase;
-      wheelFace.style.transform = `rotateZ(${wheelAngle}deg)`;
-      const wheelSpeed = wheelTotal*(5*Math.pow(1-p,4))/ (T/16.7) ; // approx deg/frame
+      wheelFace.style.transform = `rotateZ(${wheelTotal * easeOutQuint(p)}deg)`;
 
-      // ---- ball angle (opposite direction, decelerating) ----
-      const bEase = easeOutQuint(p);
-      const ballAngle = ballEnd - ballTotal*(1 - bEase);   // sweeps down to ballEnd
-      const ballSpeed = Math.abs(ballAngle - prevBall);
-      prevBall = ballAngle;
+      // ---- ball angle (decelerating, opposite sense) ----
+      const ballAngle = ballEnd - ballTotal*(1 - easeOutQuint(p));
 
-      // ---- radius: stay out, then spiral in past ~50% ----
-      let radius;
-      if (p < 0.5) {
-        radius = R_OUTER - 0.015*Math.sin(p*40);          // slight wobble on the track
-      } else {
-        const q = (p - 0.5) / 0.5;                        // 0..1 inward phase
+      let radius = R_OUTER, lift = 0;
+
+      if (elapsed < tTrack) {
+        // riding the rim with a faint wobble
+        radius = R_OUTER - 0.012*Math.sin(elapsed/45);
+        // rapid fret rattle, spacing out as the ball slows
+        const fret = Math.floor(-ballAngle / SEG);
+        if (fret !== lastFret && (now - lastTickMs) > 20) {
+          const sp = 1 - elapsed/tTrack;                  // 1..0
+          clack(0.05 + sp*0.11, 1500 + sp*1300);
+          lastFret = fret; lastTickMs = now;
+        }
+      } else if (elapsed < tTrack + tBounce) {
+        // spiral inward while bouncing under gravity
+        const bt = elapsed - tTrack;
+        const q  = bt / tBounce;
         radius = R_OUTER + (R_RING - R_OUTER)*easeOutCubic(q);
+        let seg = 0;
+        while (seg < starts.length-1 && bt >= starts[seg+1]) seg++;
+        const tau = Math.min(1, (bt - starts[seg]) / durs[seg]);
+        lift = 4 * heights[seg] * tau * (1 - tau);        // parabolic arc
+        if (seg !== lastSeg) {                            // a new bounce just landed
+          const v = 0.18 * Math.pow(restitution, seg) + 0.05;
+          clack(Math.max(v, 0.05), 1300 - seg*30);
+          lastSeg = seg;
+        }
+      } else {
+        radius = R_RING; lift = 0;                        // resting in the pocket
       }
 
-      // ---- vertical hop / bounces while descending and settling ----
-      let hop = 0;
-      if (p > 0.5) {
-        const q = (p - 0.5) / 0.5;
-        const decay = Math.pow(1-q, 1.7);
-        hop = Math.abs(Math.sin(q*Math.PI*bounceCount)) * bounceAmp * decay;
-      }
-
-      setBall(ballAngle, radius, hop);
-
-      // ---- audio drive ----
-      updateBeds(ballSpeed, Math.max(wheelSpeed,0));
-      // fret clacks: each pocket the ball crosses, throttled; livelier as it bounces
-      const fretIdx = Math.floor(-ballAngle / SEG);
-      if (fretIdx !== lastFret && (now - lastTick) > 24) {
-        const vol = 0.04 + Math.min(ballSpeed/20, 1)*0.16 + (hop>2?0.05:0);
-        clack(vol);
-        lastFret = fretIdx; lastTick = now;
-      }
+      setBall(ballAngle, radius, lift);
+      updateBeds(decel);
 
       if (p < 1) {
         requestAnimationFrame(frame);
       } else {
         setBall(ballEnd, R_RING, 0);
+        clack(0.1, 900);
         thud();
         stopBeds();
         finish(number);
@@ -762,6 +780,7 @@
     soundBtn.textContent = soundOn ? '🔊 Sound' : '🔇 Muted';
     soundBtn.classList.toggle('off', !soundOn);
     if (soundOn) { ensureAudio(); if (actx?.state==='suspended') actx.resume(); }
+    applyMute();
   });
 
   document.getElementById('fsBtn').addEventListener('click', () => {
@@ -770,8 +789,10 @@
   });
 
   // park the ball on the track at rest
-  setBall(-90, R_OUTER, 0);
-  window.addEventListener('resize', () => { if (!spinning) setBall(-90, R_OUTER, 0); });
+  function park() { updateDims(); if (!spinning) setBall(-90, R_OUTER, 0); }
+  window.addEventListener('resize', park);
+  window.addEventListener('load', park);
+  park();
 </script>
 </body>
 </html>
