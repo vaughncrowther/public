@@ -337,6 +337,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-y: auto;
   }
   .history h2 {
     margin: 0 0 8px;
@@ -424,7 +425,7 @@
 
   .history-list {
     list-style: none; margin: 0; padding: 0 4px 0 0;
-    overflow-y: auto; flex: 1;
+    overflow-y: auto; flex: 1 1 auto; min-height: clamp(90px, 18vh, 240px);
   }
   .history-list li {
     display: flex; align-items: center; gap: 10px;
@@ -462,17 +463,23 @@
 
   /* ---------- Odds / payouts ---------- */
   .odds {
-    margin-top: 12px;
+    margin-top: 10px;
     border-top: 1px solid rgba(212,175,55,.4);
     padding-top: 8px;
+    flex: 0 0 auto;
   }
-  .odds h3 {
-    margin: 0 0 6px;
+  .odds summary {
+    cursor: pointer;
+    list-style: none;
     text-align: center;
     color: var(--gold-light);
     letter-spacing: 1.5px;
     font-size: clamp(.85rem, 1.25vw, 1.15rem);
+    padding: 4px 0;
   }
+  .odds summary::-webkit-details-marker { display: none; }
+  .odds summary::before { content: "▸ "; font-size: .8em; }
+  .odds[open] summary::before { content: "▾ "; }
   .odds table { width: 100%; border-collapse: collapse; font-size: clamp(.62rem, .95vw, .82rem); }
   .odds th {
     text-align: left; color: #9fb8a4; font-weight: normal;
@@ -560,8 +567,8 @@
       </ul>
       <button class="clear-btn" id="clearBtn">Clear History</button>
 
-      <div class="odds">
-        <h3>Bets &amp; Payouts</h3>
+      <details class="odds">
+        <summary>Bets &amp; Payouts</summary>
         <table>
           <thead>
             <tr><th>Bet</th><th class="r">Pays</th><th class="r">Win %</th></tr>
@@ -580,7 +587,7 @@
           </tbody>
         </table>
         <div class="note">European single-zero wheel · house edge 2.7%</div>
-      </div>
+      </details>
     </aside>
 
     <footer class="swipe-bar" id="swipeBar">
@@ -825,9 +832,9 @@
   const ri  = (a,b) => a + Math.floor(Math.random()*(b-a+1));
   // each force changes spin length, number of turns and how hard the ball rattles
   const SPIN_PRESETS = {
-    gentle: { T:()=>rnd(12000,15000), wheel:()=>ri(3,4), ball:()=>ri(6,9),   rest:()=>rnd(0.50,0.60), H:()=>rnd(0.09,0.13) },
-    normal: { T:()=>rnd(9500,13500),  wheel:()=>ri(4,6), ball:()=>ri(9,13),  rest:()=>rnd(0.58,0.70), H:()=>rnd(0.13,0.19) },
-    hard:   { T:()=>rnd(10500,14500), wheel:()=>ri(6,9), ball:()=>ri(13,18), rest:()=>rnd(0.64,0.78), H:()=>rnd(0.17,0.26) },
+    gentle: { T:()=>rnd(15000,18500), wheel:()=>ri(7,10),  ball:()=>ri(16,22), rest:()=>rnd(0.50,0.60), H:()=>rnd(0.09,0.13) },
+    normal: { T:()=>rnd(18000,22000), wheel:()=>ri(9,13),  ball:()=>ri(20,28), rest:()=>rnd(0.58,0.70), H:()=>rnd(0.13,0.19) },
+    hard:   { T:()=>rnd(21000,25000), wheel:()=>ri(12,18), ball:()=>ri(26,36), rest:()=>rnd(0.64,0.78), H:()=>rnd(0.17,0.26) },
   };
   let selectedStrength = 'normal';
 
@@ -883,8 +890,8 @@
       // ---- wheel ----
       wheelFace.style.transform = `rotateZ(${wheelTotal * easeOutQuint(p)}deg)`;
 
-      // ---- ball angle (decelerating, opposite sense) ----
-      const ballAngle = ballEnd - ballTotal*(1 - easeOutQuint(p));
+      // ---- ball angle (decelerating, COUNTER-rotating vs the wheel) ----
+      const ballAngle = ballEnd + ballTotal*(1 - easeOutQuint(p));
       const pan = Math.max(-1, Math.min(1, Math.cos(ballAngle*Math.PI/180))) * 0.85;
 
       let radius = R_OUTER, lift = 0, rollNorm = 0;
