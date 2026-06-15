@@ -831,9 +831,9 @@
   const ri  = (a,b) => a + Math.floor(Math.random()*(b-a+1));
   // each force changes spin length, number of turns and how hard the ball rattles
   const SPIN_PRESETS = {
-    gentle: { T:()=>rnd(16000,18000), wheel:()=>ri(7,10),  ball:()=>ri(16,22), rest:()=>rnd(0.55,0.66), H:()=>rnd(0.18,0.26) },
-    normal: { T:()=>rnd(18000,21000), wheel:()=>ri(9,13),  ball:()=>ri(20,28), rest:()=>rnd(0.60,0.72), H:()=>rnd(0.26,0.38) },
-    hard:   { T:()=>rnd(19500,22500), wheel:()=>ri(12,18), ball:()=>ri(26,36), rest:()=>rnd(0.66,0.80), H:()=>rnd(0.34,0.50) },
+    gentle: { T:()=>rnd(16000,18000), wheel:()=>ri(5,7),  ball:()=>ri(16,22), rest:()=>rnd(0.62,0.72), H:()=>rnd(0.20,0.28) },
+    normal: { T:()=>rnd(18000,21000), wheel:()=>ri(7,10), ball:()=>ri(20,28), rest:()=>rnd(0.68,0.78), H:()=>rnd(0.28,0.40) },
+    hard:   { T:()=>rnd(19500,22500), wheel:()=>ri(9,13), ball:()=>ri(26,36), rest:()=>rnd(0.74,0.84), H:()=>rnd(0.36,0.52) },
   };
   let selectedStrength = 'normal';
 
@@ -853,7 +853,7 @@
 
     // ================= physics simulation (degrees & seconds) =================
     const T = cfg.T();                                   // overall feel (ms)
-    const tRim = (T*0.80) / 1000;                        // seconds the ball rides the rim
+    const tRim = (T*0.66) / 1000;                        // shorter rim ride -> more time bouncing
     const ballRevs  = cfg.ball();
     const wheelRevs = cfg.wheel();
 
@@ -878,7 +878,7 @@
     let radius = R_OUTER, z = 0, vz = 0;
     let phase = 'rim', descT = 0;
     let resultIdx = -1, rideOffset = 0, snapFrom = 0, snapStart = 0;
-    let lastFret = -1, lastTickMs = 0, last = performance.now(), t0 = last;
+    let lastFret = -1, lastTickMs = 0, lastBounceMs = 0, last = performance.now(), t0 = last;
 
     const baseOff = target*SEG - 90;                     // target pocket on the wheel face
     const capture = () => {                              // ball drops home into the pocket
@@ -933,8 +933,11 @@
           const impact = -vz;
           vz = impact * e_v * (0.75 + Math.random()*0.5);
           ballVel += (Math.random()*2-1) * Math.min(90, impact*0.12 + 25); // random ricochet
-          clack(Math.min(0.22, 0.05 + impact/2600), 1150 + Math.random()*500, panOf(ballPos));
-          if (vz < 45 && Math.abs(gap) < SEG*0.5) capture();
+          if (impact > 70 && now - lastBounceMs > 38) {  // clack only on real hops
+            clack(Math.min(0.22, 0.05 + impact/2600), 1150 + Math.random()*500, panOf(ballPos));
+            lastBounceMs = now;
+          }
+          if (vz < 25 && Math.abs(gap) < SEG*0.5) capture();
         }
         radius = R_RING + 0.06*Math.min(1, z/(R*0.35));  // rides up the pocket wall when high
       } else if (phase === 'settling') {
