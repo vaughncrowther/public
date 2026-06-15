@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casino Night — Roulette</title>
+<style>
+  :root {
+    --felt-dark: #0b3d1f;
+    --felt: #14552c;
+    --gold: #d4af37;
+    --gold-light: #f1d97a;
+    --red: #c1121f;
+    --black: #1a1a1a;
+    --green: #0a7d34;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Georgia", "Times New Roman", serif;
+    background:
+      radial-gradient(circle at 50% 0%, #1e6b3a 0%, var(--felt) 35%, var(--felt-dark) 100%);
+    color: #f5f0e1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    text-align: center;
+    padding: 18px 10px 6px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 2.4rem;
+    letter-spacing: 2px;
+    color: var(--gold-light);
+    text-shadow: 0 2px 4px rgba(0,0,0,.6), 0 0 18px rgba(212,175,55,.35);
+  }
+  header p {
+    margin: 4px 0 0;
+    font-style: italic;
+    color: #cbe3cf;
+    opacity: .85;
+  }
+
+  .layout {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 1100px;
+    padding: 10px 20px 40px;
+  }
+
+  /* ---------- Wheel ---------- */
+  .wheel-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+
+  .wheel-wrap {
+    position: relative;
+    width: 420px;
+    height: 420px;
+    max-width: 88vw;
+    max-height: 88vw;
+  }
+
+  /* Pointer / ball marker at the top */
+  .pointer {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 16px solid transparent;
+    border-right: 16px solid transparent;
+    border-top: 26px solid var(--gold-light);
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
+    z-index: 10;
+  }
+
+  .wheel {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    position: relative;
+    transition: transform 6s cubic-bezier(0.17, 0.67, 0.12, 1);
+    box-shadow:
+      0 0 0 14px #3a2410,
+      0 0 0 18px var(--gold),
+      0 0 0 22px #3a2410,
+      0 14px 40px rgba(0,0,0,.6);
+    background: #3a2410;
+  }
+
+  .wheel svg { display: block; width: 100%; height: 100%; }
+
+  .hub {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 120px; height: 120px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #f1d97a, var(--gold) 45%, #8a6d1f 100%);
+    box-shadow: inset 0 0 12px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    border: 4px solid #3a2410;
+  }
+  .hub::before {
+    content: "";
+    position: absolute;
+    width: 8px; height: 150px;
+    background: linear-gradient(#fff6d5, #b9952c);
+    border-radius: 4px;
+    box-shadow: 0 0 6px rgba(0,0,0,.4);
+  }
+  .hub::after {
+    content: "";
+    position: absolute;
+    width: 150px; height: 8px;
+    background: linear-gradient(90deg, #b9952c, #fff6d5, #b9952c);
+    border-radius: 4px;
+    box-shadow: 0 0 6px rgba(0,0,0,.4);
+  }
+  .hub span {
+    position: relative;
+    z-index: 2;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, #c9c9c9 60%, #888);
+    box-shadow: inset 0 0 6px rgba(0,0,0,.4);
+  }
+
+  /* ---------- Result ---------- */
+  .result-card {
+    text-align: center;
+    min-height: 92px;
+  }
+  .result-label {
+    font-size: .9rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #bcd6c0;
+    opacity: .8;
+  }
+  .result-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 86px; height: 86px;
+    border-radius: 50%;
+    font-size: 2.6rem;
+    font-weight: bold;
+    margin-top: 6px;
+    color: #fff;
+    border: 3px solid var(--gold);
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    transition: transform .3s;
+  }
+  .result-number.pop { transform: scale(1.12); }
+  .result-meta {
+    margin-top: 8px;
+    font-style: italic;
+    color: #e8e0c8;
+    min-height: 1.2em;
+  }
+
+  .controls { display: flex; gap: 14px; }
+  button.spin {
+    font-family: inherit;
+    font-size: 1.15rem;
+    letter-spacing: 1px;
+    padding: 14px 38px;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    color: #2a1a05;
+    background: linear-gradient(#f1d97a, var(--gold) 55%, #b9952c);
+    box-shadow: 0 5px 0 #80671a, 0 8px 16px rgba(0,0,0,.4);
+    transition: transform .08s, box-shadow .08s;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+  button.spin:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #80671a, 0 3px 8px rgba(0,0,0,.4);
+  }
+  button.spin:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ---------- History ---------- */
+  .history {
+    background: rgba(0,0,0,.28);
+    border: 2px solid var(--gold);
+    border-radius: 14px;
+    width: 260px;
+    max-width: 90vw;
+    padding: 16px 16px 20px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,.4);
+    display: flex;
+    flex-direction: column;
+    max-height: 560px;
+  }
+  .history h2 {
+    margin: 0 0 4px;
+    text-align: center;
+    color: var(--gold-light);
+    letter-spacing: 2px;
+    font-size: 1.2rem;
+  }
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    font-size: .8rem;
+    color: #cbe3cf;
+    padding: 6px 0 10px;
+    border-bottom: 1px solid rgba(212,175,55,.4);
+    margin-bottom: 8px;
+  }
+  .stats b { color: #fff; display: block; font-size: 1.05rem; }
+  .stats .red b { color: #ff6b6b; }
+  .stats .black b { color: #d6d6d6; }
+  .stats .green b { color: #6fe39a; }
+
+  .history-list {
+    list-style: none;
+    margin: 0;
+    padding: 0 4px 0 0;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .history-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    border-bottom: 1px dashed rgba(255,255,255,.08);
+    animation: slidein .35s ease;
+  }
+  @keyframes slidein { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+  .chip {
+    width: 34px; height: 34px;
+    flex: 0 0 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,.35);
+    box-shadow: 0 2px 4px rgba(0,0,0,.4);
+    font-size: .95rem;
+  }
+  .spin-no { font-size: .7rem; color: #9fb8a4; width: 30px; }
+  .spin-meta { font-size: .78rem; color: #d7ccab; font-style: italic; }
+
+  .num-red { background: var(--red); }
+  .num-black { background: var(--black); }
+  .num-green { background: var(--green); }
+
+  .clear-btn {
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid rgba(212,175,55,.6);
+    color: var(--gold-light);
+    border-radius: 8px;
+    padding: 7px;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  .clear-btn:hover { background: rgba(212,175,55,.15); }
+  .empty { text-align: center; color: #8ba892; font-style: italic; padding: 20px 0; font-size: .85rem; }
+
+  /* scrollbar */
+  .history-list::-webkit-scrollbar { width: 8px; }
+  .history-list::-webkit-scrollbar-thumb { background: rgba(212,175,55,.5); border-radius: 4px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>♣ Casino Night Roulette ♦</h1>
+    <p>European single-zero wheel — place your bets, please!</p>
+  </header>
+
+  <div class="layout">
+    <div class="wheel-area">
+      <div class="wheel-wrap">
+        <div class="pointer"></div>
+        <div class="wheel" id="wheel"></div>
+        <div class="hub"><span></span></div>
+      </div>
+
+      <div class="result-card">
+        <div class="result-label">Last Result</div>
+        <div class="result-number num-green" id="resultNumber">–</div>
+        <div class="result-meta" id="resultMeta">Awaiting first spin…</div>
+      </div>
+
+      <div class="controls">
+        <button class="spin" id="spinBtn">Spin the Wheel</button>
+      </div>
+    </div>
+
+    <aside class="history">
+      <h2>Spin History</h2>
+      <div class="stats">
+        <div class="red"><b id="statRed">0</b>Red</div>
+        <div class="black"><b id="statBlack">0</b>Black</div>
+        <div class="green"><b id="statGreen">0</b>Zero</div>
+        <div><b id="statTotal">0</b>Total</div>
+      </div>
+      <ul class="history-list" id="historyList">
+        <li class="empty" id="emptyMsg">No spins yet.</li>
+      </ul>
+      <button class="clear-btn" id="clearBtn">Clear History</button>
+    </aside>
+  </div>
+
+<script>
+  // European roulette wheel order (clockwise from 0)
+  const ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,
+                 5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+  const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+  const N = ORDER.length;          // 37 pockets
+  const SEG = 360 / N;             // degrees per pocket
+
+  function colorOf(n) {
+    if (n === 0) return 'green';
+    return RED.has(n) ? 'red' : 'black';
+  }
+
+  // ---- Build the wheel face as SVG ----
+  (function buildWheel() {
+    const size = 400, cx = size/2, cy = size/2, rOuter = 196, rInner = 70;
+    let parts = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
+    parts += `<circle cx="${cx}" cy="${cy}" r="${rOuter}" fill="#3a2410"/>`;
+
+    ORDER.forEach((num, i) => {
+      const start = (i * SEG - 90 - SEG/2) * Math.PI/180;
+      const end   = ((i+1) * SEG - 90 - SEG/2) * Math.PI/180;
+      const x1 = cx + rOuter * Math.cos(start), y1 = cy + rOuter * Math.sin(start);
+      const x2 = cx + rOuter * Math.cos(end),   y2 = cy + rOuter * Math.sin(end);
+      const x3 = cx + rInner * Math.cos(end),   y3 = cy + rInner * Math.sin(end);
+      const x4 = cx + rInner * Math.cos(start), y4 = cy + rInner * Math.sin(start);
+      const fill = colorOf(num) === 'red' ? '#c1121f' : colorOf(num) === 'black' ? '#1a1a1a' : '#0a7d34';
+      parts += `<path d="M${x1} ${y1} A${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L${x3} ${y3} A${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#d4af37" stroke-width="1"/>`;
+
+      // number label
+      const mid = (i * SEG - 90) * Math.PI/180;
+      const rText = (rOuter + rInner)/2 + 30;
+      const tx = cx + rText * Math.cos(mid), ty = cy + rText * Math.sin(mid);
+      const rot = i * SEG;
+      parts += `<text x="${tx}" y="${ty}" fill="#fff" font-size="15" font-family="Georgia, serif" font-weight="bold" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot} ${tx} ${ty})">${num}</text>`;
+    });
+
+    parts += `<circle cx="${cx}" cy="${cy}" r="${rInner}" fill="none" stroke="#d4af37" stroke-width="3"/>`;
+    parts += `</svg>`;
+    document.getElementById('wheel').innerHTML = parts;
+  })();
+
+  // ---- State ----
+  const wheel = document.getElementById('wheel');
+  const spinBtn = document.getElementById('spinBtn');
+  const resultNumber = document.getElementById('resultNumber');
+  const resultMeta = document.getElementById('resultMeta');
+  const historyList = document.getElementById('historyList');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const clearBtn = document.getElementById('clearBtn');
+
+  let currentRotation = 0;
+  let spinning = false;
+  let spinCount = 0;
+  const counts = { red: 0, black: 0, green: 0 };
+
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    spinBtn.disabled = true;
+    resultMeta.textContent = 'No more bets — the ball is rolling…';
+
+    // Random result via crypto for fairness
+    const idx = randomIndex(N);
+    const number = ORDER[idx];
+
+    // Pointer sits at top (12 o'clock). Pocket idx center angle from top = idx * SEG.
+    // To land it at the top we rotate the wheel so that pocket comes under the pointer.
+    const targetAngle = 360 - (idx * SEG);
+    const extraSpins = 5 + Math.floor(Math.random() * 3); // 5–7 full turns
+    // jitter within the pocket so it doesn't always stop dead center
+    const jitter = (Math.random() - 0.5) * (SEG * 0.6);
+
+    currentRotation += extraSpins * 360 + (targetAngle - (currentRotation % 360)) + jitter;
+    wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+    setTimeout(() => finishSpin(number), 6050);
+  }
+
+  function finishSpin(number) {
+    const color = colorOf(number);
+    spinCount++;
+
+    // Result card
+    resultNumber.textContent = number;
+    resultNumber.className = 'result-number num-' + color + ' pop';
+    setTimeout(() => resultNumber.classList.remove('pop'), 320);
+    resultMeta.textContent = describe(number, color);
+
+    // Stats
+    counts[color]++;
+    document.getElementById('statRed').textContent = counts.red;
+    document.getElementById('statBlack').textContent = counts.black;
+    document.getElementById('statGreen').textContent = counts.green;
+    document.getElementById('statTotal').textContent = spinCount;
+
+    // History entry
+    if (emptyMsg) emptyMsg.remove();
+    const li = document.createElement('li');
+    li.innerHTML =
+      `<span class="spin-no">#${spinCount}</span>` +
+      `<span class="chip num-${color}">${number}</span>` +
+      `<span class="spin-meta">${capitalize(color === 'green' ? 'Zero' : color)}${number !== 0 ? ' · ' + (number % 2 === 0 ? 'Even' : 'Odd') : ''}</span>`;
+    historyList.prepend(li);
+
+    spinning = false;
+    spinBtn.disabled = false;
+  }
+
+  function describe(number, color) {
+    if (number === 0) return 'Zero — the house pocket!';
+    const parity = number % 2 === 0 ? 'Even' : 'Odd';
+    const range = number <= 18 ? 'Low (1–18)' : 'High (19–36)';
+    return `${capitalize(color)} · ${parity} · ${range}`;
+  }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // Unbiased random index using crypto when available
+  function randomIndex(max) {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const limit = Math.floor(0xffffffff / max) * max;
+      const buf = new Uint32Array(1);
+      let x;
+      do { window.crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+      return x % max;
+    }
+    return Math.floor(Math.random() * max);
+  }
+
+  clearBtn.addEventListener('click', () => {
+    historyList.innerHTML = '<li class="empty" id="emptyMsg">No spins yet.</li>';
+    spinCount = 0;
+    counts.red = counts.black = counts.green = 0;
+    ['statRed','statBlack','statGreen','statTotal'].forEach(id => document.getElementById(id).textContent = '0');
+    resultNumber.textContent = '–';
+    resultNumber.className = 'result-number num-green';
+    resultMeta.textContent = 'History cleared — ready for the next round.';
+  });
+
+  spinBtn.addEventListener('click', spin);
+</script>
+</body>
+</html>
