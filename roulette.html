@@ -3,316 +3,421 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Casino Night — Roulette</title>
+<title>Casino Night — 3D Roulette</title>
 <style>
   :root {
-    --felt-dark: #0b3d1f;
-    --felt: #14552c;
     --gold: #d4af37;
-    --gold-light: #f1d97a;
+    --gold-light: #f6e08a;
+    --gold-dark: #8a6d1f;
     --red: #c1121f;
-    --black: #1a1a1a;
+    --black: #161616;
     --green: #0a7d34;
+    --wheel: min(64vmin, 720px);
   }
 
   * { box-sizing: border-box; }
-
+  html, body { height: 100%; }
   body {
     margin: 0;
     font-family: "Georgia", "Times New Roman", serif;
-    background:
-      radial-gradient(circle at 50% 0%, #1e6b3a 0%, var(--felt) 35%, var(--felt-dark) 100%);
     color: #f5f0e1;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 50% -10%, #2a7d49 0%, #15592f 38%, #093a1d 78%, #052311 100%);
+  }
+
+  .app {
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr clamp(240px, 24vw, 360px);
+    grid-template-rows: auto 1fr;
+    gap: 0;
   }
 
   header {
-    text-align: center;
-    padding: 18px 10px 6px;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px clamp(14px, 2.4vw, 40px);
+    background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,0));
   }
   header h1 {
     margin: 0;
-    font-size: 2.4rem;
+    font-size: clamp(1.3rem, 2.6vw, 2.4rem);
     letter-spacing: 2px;
     color: var(--gold-light);
-    text-shadow: 0 2px 4px rgba(0,0,0,.6), 0 0 18px rgba(212,175,55,.35);
+    text-shadow: 0 2px 6px rgba(0,0,0,.7), 0 0 22px rgba(212,175,55,.4);
+    white-space: nowrap;
   }
-  header p {
-    margin: 4px 0 0;
-    font-style: italic;
-    color: #cbe3cf;
-    opacity: .85;
+  .top-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    font-family: inherit;
+    background: rgba(0,0,0,.3);
+    color: var(--gold-light);
+    border: 1px solid rgba(212,175,55,.6);
+    border-radius: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: clamp(.75rem, 1.2vw, .95rem);
+    letter-spacing: 1px;
+    transition: background .15s;
+    white-space: nowrap;
   }
+  .icon-btn:hover { background: rgba(212,175,55,.18); }
+  .icon-btn.off { opacity: .5; }
 
-  .layout {
-    display: flex;
-    gap: 30px;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    justify-content: center;
-    width: 100%;
-    max-width: 1100px;
-    padding: 10px 20px 40px;
-  }
-
-  /* ---------- Wheel ---------- */
-  .wheel-area {
+  /* ---------- Stage ---------- */
+  .stage {
+    grid-column: 1;
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 22px;
+    justify-content: center;
+    gap: clamp(14px, 2.6vh, 36px);
+    padding: 10px;
   }
 
-  .wheel-wrap {
+  .scene {
+    width: var(--wheel);
+    height: calc(var(--wheel) * 0.78);
     position: relative;
-    width: 420px;
-    height: 420px;
-    max-width: 88vw;
-    max-height: 88vw;
+    perspective: 1400px;
+    perspective-origin: 50% 38%;
   }
 
-  /* Pointer / ball marker at the top */
-  .pointer {
+  /* tilted bowl plane */
+  .tilt {
     position: absolute;
-    top: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 16px solid transparent;
-    border-right: 16px solid transparent;
-    border-top: 26px solid var(--gold-light);
-    filter: drop-shadow(0 2px 3px rgba(0,0,0,.6));
-    z-index: 10;
+    inset: 0;
+    margin: auto;
+    width: var(--wheel);
+    height: var(--wheel);
+    transform-style: preserve-3d;
+    transform: rotateX(58deg);
+    top: 50%;
+    transform-origin: center;
+    margin-top: calc(var(--wheel) * -0.5);
   }
 
-  .wheel {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    position: relative;
-    transition: transform 6s cubic-bezier(0.17, 0.67, 0.12, 1);
-    box-shadow:
-      0 0 0 14px #3a2410,
-      0 0 0 18px var(--gold),
-      0 0 0 22px #3a2410,
-      0 14px 40px rgba(0,0,0,.6);
-    background: #3a2410;
-  }
-
-  .wheel svg { display: block; width: 100%; height: 100%; }
-
-  .hub {
+  /* outer fixed bowl / table rim (does not spin) */
+  .bowl {
     position: absolute;
-    top: 50%; left: 50%;
-    width: 120px; height: 120px;
-    transform: translate(-50%, -50%);
+    inset: -7%;
     border-radius: 50%;
     background:
-      radial-gradient(circle at 35% 30%, #f1d97a, var(--gold) 45%, #8a6d1f 100%);
-    box-shadow: inset 0 0 12px rgba(0,0,0,.5), 0 4px 10px rgba(0,0,0,.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 5;
-    border: 4px solid #3a2410;
+      radial-gradient(circle at 50% 38%, #6b4e1c 0%, #4a3413 36%, #2a1c08 64%, #1a1206 100%);
+    box-shadow:
+      0 0 0 2px var(--gold-dark),
+      inset 0 0 60px rgba(0,0,0,.8);
   }
-  .hub::before {
+  .bowl::after {
     content: "";
     position: absolute;
-    width: 8px; height: 150px;
-    background: linear-gradient(#fff6d5, #b9952c);
-    border-radius: 4px;
-    box-shadow: 0 0 6px rgba(0,0,0,.4);
-  }
-  .hub::after {
-    content: "";
-    position: absolute;
-    width: 150px; height: 8px;
-    background: linear-gradient(90deg, #b9952c, #fff6d5, #b9952c);
-    border-radius: 4px;
-    box-shadow: 0 0 6px rgba(0,0,0,.4);
-  }
-  .hub span {
-    position: relative;
-    z-index: 2;
-    width: 34px; height: 34px;
+    inset: 9%;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff, #c9c9c9 60%, #888);
-    box-shadow: inset 0 0 6px rgba(0,0,0,.4);
+    background: radial-gradient(circle at 50% 40%, rgba(255,235,170,.12), rgba(0,0,0,.55) 70%);
+    box-shadow:
+      inset 0 0 0 6px #2a1c08,
+      inset 0 0 0 9px var(--gold),
+      inset 0 0 0 13px #2a1c08,
+      inset 0 14px 40px rgba(0,0,0,.7);
   }
 
-  /* ---------- Result ---------- */
-  .result-card {
-    text-align: center;
-    min-height: 92px;
+  /* spinning wheel face */
+  .wheel-face {
+    position: absolute;
+    inset: 4%;
+    border-radius: 50%;
+    transform-style: preserve-3d;
+    will-change: transform;
+    filter: drop-shadow(0 0 14px rgba(0,0,0,.6));
   }
-  .result-label {
-    font-size: .9rem;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: #bcd6c0;
-    opacity: .8;
+  .wheel-face svg { width: 100%; height: 100%; display: block; }
+
+  /* center cone / turret */
+  .turret {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 26%; height: 26%;
+    transform: translate(-50%, -50%) translateZ(36px);
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #fbe6a8, var(--gold) 46%, #6f561a 100%);
+    box-shadow: 0 10px 22px rgba(0,0,0,.6), inset 0 0 16px rgba(0,0,0,.45);
+    border: 3px solid #2a1c08;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .turret::before, .turret::after {
+    content: ""; position: absolute; border-radius: 6px;
+    background: linear-gradient(#fff6d5, #b9952c);
+  }
+  .turret::before { width: 14%; height: 150%; }
+  .turret::after  { width: 150%; height: 14%; }
+  .turret span {
+    width: 34%; height: 34%; border-radius: 50%; position: relative; z-index: 2;
+    background: radial-gradient(circle at 35% 30%, #fff, #cfcfcf 60%, #7c7c7c);
+    box-shadow: inset 0 0 6px rgba(0,0,0,.5);
+  }
+
+  /* ball arm + ball (live in tilted plane) */
+  .ball-arm {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .ball {
+    position: absolute;
+    width: calc(var(--wheel) * 0.042);
+    height: calc(var(--wheel) * 0.042);
+    margin: calc(var(--wheel) * -0.021);
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ffffff, #e9e9ec 38%, #b9b9c0 66%, #6f6f78 100%);
+    box-shadow: 0 0 6px rgba(255,255,255,.5);
+    will-change: transform;
+  }
+  .ball-shadow {
+    position: absolute;
+    width: calc(var(--wheel) * 0.05);
+    height: calc(var(--wheel) * 0.05);
+    margin: calc(var(--wheel) * -0.025);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,0,0,.5), rgba(0,0,0,0) 70%);
+    will-change: transform;
+  }
+
+  /* pointer */
+  .pointer {
+    position: absolute;
+    top: -2%; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 1.6vmin solid transparent;
+    border-right: 1.6vmin solid transparent;
+    border-top: 2.6vmin solid var(--gold-light);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.7));
+    z-index: 20;
+  }
+
+  /* ---------- Result + controls ---------- */
+  .readout {
+    display: flex;
+    align-items: center;
+    gap: clamp(16px, 2.4vw, 36px);
+    text-align: center;
   }
   .result-number {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 86px; height: 86px;
+    width: clamp(64px, 9vmin, 130px);
+    height: clamp(64px, 9vmin, 130px);
     border-radius: 50%;
-    font-size: 2.6rem;
+    font-size: clamp(2rem, 4.4vmin, 4rem);
     font-weight: bold;
-    margin-top: 6px;
     color: #fff;
     border: 3px solid var(--gold);
-    box-shadow: 0 4px 14px rgba(0,0,0,.5);
-    transition: transform .3s;
+    box-shadow: 0 6px 18px rgba(0,0,0,.55), inset 0 0 16px rgba(0,0,0,.35);
+    transition: transform .35s cubic-bezier(.2,1.6,.4,1);
   }
-  .result-number.pop { transform: scale(1.12); }
+  .result-number.pop { transform: scale(1.18); }
+  .result-text { text-align: left; }
+  .result-label {
+    font-size: clamp(.7rem, 1.1vw, .95rem);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #bcd6c0;
+    opacity: .8;
+  }
   .result-meta {
-    margin-top: 8px;
     font-style: italic;
-    color: #e8e0c8;
+    color: #f1e9cf;
+    font-size: clamp(.95rem, 1.7vw, 1.5rem);
     min-height: 1.2em;
+    margin-top: 4px;
   }
 
-  .controls { display: flex; gap: 14px; }
   button.spin {
     font-family: inherit;
-    font-size: 1.15rem;
+    font-size: clamp(1rem, 1.8vw, 1.5rem);
     letter-spacing: 1px;
-    padding: 14px 38px;
+    padding: clamp(12px, 1.6vh, 20px) clamp(30px, 4vw, 60px);
     border: none;
-    border-radius: 40px;
+    border-radius: 50px;
     cursor: pointer;
     color: #2a1a05;
-    background: linear-gradient(#f1d97a, var(--gold) 55%, #b9952c);
-    box-shadow: 0 5px 0 #80671a, 0 8px 16px rgba(0,0,0,.4);
+    background: linear-gradient(#f6e08a, var(--gold) 55%, #b9952c);
+    box-shadow: 0 6px 0 #80671a, 0 10px 22px rgba(0,0,0,.5);
     transition: transform .08s, box-shadow .08s;
     text-transform: uppercase;
     font-weight: bold;
   }
   button.spin:active:not(:disabled) {
-    transform: translateY(4px);
-    box-shadow: 0 1px 0 #80671a, 0 3px 8px rgba(0,0,0,.4);
+    transform: translateY(5px);
+    box-shadow: 0 1px 0 #80671a, 0 4px 10px rgba(0,0,0,.5);
   }
   button.spin:disabled { opacity: .55; cursor: not-allowed; }
 
   /* ---------- History ---------- */
   .history {
-    background: rgba(0,0,0,.28);
-    border: 2px solid var(--gold);
-    border-radius: 14px;
-    width: 260px;
-    max-width: 90vw;
-    padding: 16px 16px 20px;
-    box-shadow: inset 0 0 20px rgba(0,0,0,.4);
+    grid-column: 2;
+    grid-row: 2;
+    background: rgba(0,0,0,.32);
+    border-left: 2px solid rgba(212,175,55,.55);
+    padding: clamp(12px, 1.6vh, 22px);
     display: flex;
     flex-direction: column;
-    max-height: 560px;
+    min-height: 0;
   }
   .history h2 {
-    margin: 0 0 4px;
+    margin: 0 0 8px;
     text-align: center;
     color: var(--gold-light);
     letter-spacing: 2px;
-    font-size: 1.2rem;
+    font-size: clamp(1rem, 1.6vw, 1.5rem);
   }
   .stats {
     display: flex;
     justify-content: space-around;
-    font-size: .8rem;
+    font-size: clamp(.65rem, 1vw, .85rem);
     color: #cbe3cf;
-    padding: 6px 0 10px;
+    padding: 6px 0 12px;
     border-bottom: 1px solid rgba(212,175,55,.4);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    text-align: center;
   }
-  .stats b { color: #fff; display: block; font-size: 1.05rem; }
+  .stats b { color: #fff; display: block; font-size: clamp(1rem, 1.6vw, 1.4rem); }
   .stats .red b { color: #ff6b6b; }
   .stats .black b { color: #d6d6d6; }
   .stats .green b { color: #6fe39a; }
 
+  .recent {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    justify-content: center;
+  }
+  .recent .pill {
+    width: clamp(26px, 3vw, 40px);
+    height: clamp(26px, 3vw, 40px);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; color: #fff;
+    font-size: clamp(.7rem, 1.1vw, 1rem);
+    border: 2px solid rgba(255,255,255,.3);
+    box-shadow: 0 2px 5px rgba(0,0,0,.4);
+  }
+
   .history-list {
-    list-style: none;
-    margin: 0;
-    padding: 0 4px 0 0;
-    overflow-y: auto;
-    flex: 1;
+    list-style: none; margin: 0; padding: 0 4px 0 0;
+    overflow-y: auto; flex: 1;
   }
   .history-list li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 4px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 4px;
     border-bottom: 1px dashed rgba(255,255,255,.08);
     animation: slidein .35s ease;
   }
-  @keyframes slidein { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+  @keyframes slidein { from { opacity:0; transform: translateX(14px);} to {opacity:1; transform:none;} }
   .chip {
-    width: 34px; height: 34px;
-    flex: 0 0 34px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: #fff;
-    border: 2px solid rgba(255,255,255,.35);
+    width: clamp(30px, 3.4vw, 44px); height: clamp(30px, 3.4vw, 44px);
+    flex: 0 0 auto; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; color: #fff;
+    border: 2px solid rgba(255,255,255,.32);
     box-shadow: 0 2px 4px rgba(0,0,0,.4);
-    font-size: .95rem;
+    font-size: clamp(.8rem, 1.2vw, 1.05rem);
   }
-  .spin-no { font-size: .7rem; color: #9fb8a4; width: 30px; }
-  .spin-meta { font-size: .78rem; color: #d7ccab; font-style: italic; }
+  .spin-no { font-size: .72rem; color: #9fb8a4; width: 34px; }
+  .spin-meta { font-size: clamp(.72rem, 1vw, .9rem); color: #d7ccab; font-style: italic; }
 
-  .num-red { background: var(--red); }
-  .num-black { background: var(--black); }
-  .num-green { background: var(--green); }
+  .num-red { background: linear-gradient(145deg, #e23b46, var(--red)); }
+  .num-black { background: linear-gradient(145deg, #333, var(--black)); }
+  .num-green { background: linear-gradient(145deg, #14a04a, var(--green)); }
 
   .clear-btn {
     margin-top: 10px;
     background: transparent;
     border: 1px solid rgba(212,175,55,.6);
     color: var(--gold-light);
-    border-radius: 8px;
-    padding: 7px;
-    font-family: inherit;
-    cursor: pointer;
-    letter-spacing: 1px;
+    border-radius: 8px; padding: 9px;
+    font-family: inherit; cursor: pointer; letter-spacing: 1px;
   }
   .clear-btn:hover { background: rgba(212,175,55,.15); }
   .empty { text-align: center; color: #8ba892; font-style: italic; padding: 20px 0; font-size: .85rem; }
 
-  /* scrollbar */
+  /* ---------- Odds / payouts ---------- */
+  .odds {
+    margin-top: 12px;
+    border-top: 1px solid rgba(212,175,55,.4);
+    padding-top: 8px;
+  }
+  .odds h3 {
+    margin: 0 0 6px;
+    text-align: center;
+    color: var(--gold-light);
+    letter-spacing: 1.5px;
+    font-size: clamp(.85rem, 1.25vw, 1.15rem);
+  }
+  .odds table { width: 100%; border-collapse: collapse; font-size: clamp(.62rem, .95vw, .82rem); }
+  .odds th {
+    text-align: left; color: #9fb8a4; font-weight: normal;
+    padding: 3px 4px; border-bottom: 1px solid rgba(255,255,255,.12);
+    letter-spacing: .5px;
+  }
+  .odds th.r, .odds td.r { text-align: right; }
+  .odds td { padding: 3px 4px; border-bottom: 1px dashed rgba(255,255,255,.06); color: #e6ddc4; }
+  .odds td b { color: var(--gold-light); }
+  .odds tr:hover td { background: rgba(212,175,55,.08); }
+  .odds .note { font-size: .62rem; color: #8ba892; font-style: italic; text-align: center; margin-top: 6px; }
+
   .history-list::-webkit-scrollbar { width: 8px; }
   .history-list::-webkit-scrollbar-thumb { background: rgba(212,175,55,.5); border-radius: 4px; }
+
+  /* portrait / small screens stack */
+  @media (max-aspect-ratio: 9/10) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+    .stage { grid-column: 1; }
+    .history { grid-column: 1; grid-row: 3; border-left: none; border-top: 2px solid rgba(212,175,55,.55); }
+  }
 </style>
 </head>
 <body>
-  <header>
-    <h1>♣ Casino Night Roulette ♦</h1>
-    <p>European single-zero wheel — place your bets, please!</p>
-  </header>
+  <div class="app">
+    <header>
+      <h1>♣&nbsp; Casino Night Roulette &nbsp;♦</h1>
+      <div class="top-actions">
+        <button class="icon-btn" id="soundBtn" title="Toggle sound">🔊 Sound</button>
+        <button class="icon-btn" id="fsBtn" title="Fullscreen for TV">⛶ Fullscreen</button>
+      </div>
+    </header>
 
-  <div class="layout">
-    <div class="wheel-area">
-      <div class="wheel-wrap">
+    <div class="stage">
+      <div class="scene">
         <div class="pointer"></div>
-        <div class="wheel" id="wheel"></div>
-        <div class="hub"><span></span></div>
+        <div class="tilt">
+          <div class="bowl"></div>
+          <div class="wheel-face" id="wheelFace"></div>
+          <div class="turret"><span></span></div>
+          <div class="ball-arm" id="ballArm">
+            <div class="ball-shadow" id="ballShadow"></div>
+            <div class="ball" id="ball"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="result-card">
-        <div class="result-label">Last Result</div>
+      <div class="readout">
         <div class="result-number num-green" id="resultNumber">–</div>
-        <div class="result-meta" id="resultMeta">Awaiting first spin…</div>
+        <div class="result-text">
+          <div class="result-label">Winning Number</div>
+          <div class="result-meta" id="resultMeta">Place your bets…</div>
+        </div>
       </div>
 
-      <div class="controls">
-        <button class="spin" id="spinBtn">Spin the Wheel</button>
-      </div>
+      <button class="spin" id="spinBtn">Spin the Wheel</button>
     </div>
 
     <aside class="history">
@@ -323,155 +428,350 @@
         <div class="green"><b id="statGreen">0</b>Zero</div>
         <div><b id="statTotal">0</b>Total</div>
       </div>
+      <div class="recent" id="recent"></div>
       <ul class="history-list" id="historyList">
         <li class="empty" id="emptyMsg">No spins yet.</li>
       </ul>
       <button class="clear-btn" id="clearBtn">Clear History</button>
+
+      <div class="odds">
+        <h3>Bets &amp; Payouts</h3>
+        <table>
+          <thead>
+            <tr><th>Bet</th><th class="r">Pays</th><th class="r">Win %</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Straight (1 No.)</td><td class="r"><b>35:1</b></td><td class="r">2.7%</td></tr>
+            <tr><td>Split (2 Nos.)</td><td class="r"><b>17:1</b></td><td class="r">5.4%</td></tr>
+            <tr><td>Street (3 Nos.)</td><td class="r"><b>11:1</b></td><td class="r">8.1%</td></tr>
+            <tr><td>Corner (4 Nos.)</td><td class="r"><b>8:1</b></td><td class="r">10.8%</td></tr>
+            <tr><td>Line (6 Nos.)</td><td class="r"><b>5:1</b></td><td class="r">16.2%</td></tr>
+            <tr><td>Column (12)</td><td class="r"><b>2:1</b></td><td class="r">32.4%</td></tr>
+            <tr><td>Dozen (12)</td><td class="r"><b>2:1</b></td><td class="r">32.4%</td></tr>
+            <tr><td>Red / Black</td><td class="r"><b>1:1</b></td><td class="r">48.6%</td></tr>
+            <tr><td>Even / Odd</td><td class="r"><b>1:1</b></td><td class="r">48.6%</td></tr>
+            <tr><td>1–18 / 19–36</td><td class="r"><b>1:1</b></td><td class="r">48.6%</td></tr>
+          </tbody>
+        </table>
+        <div class="note">European single-zero wheel · house edge 2.7%</div>
+      </div>
     </aside>
   </div>
 
 <script>
-  // European roulette wheel order (clockwise from 0)
+  /* ============ Wheel data ============ */
   const ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,
                  5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
   const RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+  const N = ORDER.length;          // 37
+  const SEG = 360 / N;
+  const colorOf = n => n === 0 ? 'green' : RED.has(n) ? 'red' : 'black';
+  const fill = c => c === 'red' ? '#c1121f' : c === 'black' ? '#161616' : '#0a7d34';
 
-  const N = ORDER.length;          // 37 pockets
-  const SEG = 360 / N;             // degrees per pocket
-
-  function colorOf(n) {
-    if (n === 0) return 'green';
-    return RED.has(n) ? 'red' : 'black';
-  }
-
-  // ---- Build the wheel face as SVG ----
-  (function buildWheel() {
-    const size = 400, cx = size/2, cy = size/2, rOuter = 196, rInner = 70;
-    let parts = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
-    parts += `<circle cx="${cx}" cy="${cy}" r="${rOuter}" fill="#3a2410"/>`;
+  /* ============ Build SVG wheel face ============ */
+  (function build() {
+    const S = 400, cx = S/2, cy = S/2, rOut = 198, rIn = 96, rPocket = 150;
+    let p = `<svg viewBox="0 0 ${S} ${S}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="rim" cx="50%" cy="42%" r="60%">
+          <stop offset="60%" stop-color="#2a1c08"/>
+          <stop offset="86%" stop-color="#6b4e1c"/>
+          <stop offset="92%" stop-color="#f6e08a"/>
+          <stop offset="100%" stop-color="#8a6d1f"/>
+        </radialGradient>
+        <radialGradient id="sheen" cx="40%" cy="30%" r="75%">
+          <stop offset="0%" stop-color="rgba(255,255,255,.28)"/>
+          <stop offset="45%" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+      </defs>
+      <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="url(#rim)"/>`;
 
     ORDER.forEach((num, i) => {
-      const start = (i * SEG - 90 - SEG/2) * Math.PI/180;
-      const end   = ((i+1) * SEG - 90 - SEG/2) * Math.PI/180;
-      const x1 = cx + rOuter * Math.cos(start), y1 = cy + rOuter * Math.sin(start);
-      const x2 = cx + rOuter * Math.cos(end),   y2 = cy + rOuter * Math.sin(end);
-      const x3 = cx + rInner * Math.cos(end),   y3 = cy + rInner * Math.sin(end);
-      const x4 = cx + rInner * Math.cos(start), y4 = cy + rInner * Math.sin(start);
-      const fill = colorOf(num) === 'red' ? '#c1121f' : colorOf(num) === 'black' ? '#1a1a1a' : '#0a7d34';
-      parts += `<path d="M${x1} ${y1} A${rOuter} ${rOuter} 0 0 1 ${x2} ${y2} L${x3} ${y3} A${rInner} ${rInner} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#d4af37" stroke-width="1"/>`;
-
-      // number label
-      const mid = (i * SEG - 90) * Math.PI/180;
-      const rText = (rOuter + rInner)/2 + 30;
-      const tx = cx + rText * Math.cos(mid), ty = cy + rText * Math.sin(mid);
-      const rot = i * SEG;
-      parts += `<text x="${tx}" y="${ty}" fill="#fff" font-size="15" font-family="Georgia, serif" font-weight="bold" text-anchor="middle" dominant-baseline="central" transform="rotate(${rot} ${tx} ${ty})">${num}</text>`;
+      const a0 = (i*SEG - 90 - SEG/2) * Math.PI/180;
+      const a1 = ((i+1)*SEG - 90 - SEG/2) * Math.PI/180;
+      const x1 = cx + rOut*Math.cos(a0), y1 = cy + rOut*Math.sin(a0);
+      const x2 = cx + rOut*Math.cos(a1), y2 = cy + rOut*Math.sin(a1);
+      const x3 = cx + rIn*Math.cos(a1),  y3 = cy + rIn*Math.sin(a1);
+      const x4 = cx + rIn*Math.cos(a0),  y4 = cy + rIn*Math.sin(a0);
+      p += `<path d="M${x1} ${y1} A${rOut} ${rOut} 0 0 1 ${x2} ${y2} L${x3} ${y3} A${rIn} ${rIn} 0 0 0 ${x4} ${y4} Z"
+              fill="${fill(colorOf(num))}" stroke="#caa84a" stroke-width="1.1"/>`;
+      // fret separators (little posts)
+      const fx = cx + (rOut-4)*Math.cos(a0), fy = cy + (rOut-4)*Math.sin(a0);
+      const fxi = cx + (rIn+3)*Math.cos(a0), fyi = cy + (rIn+3)*Math.sin(a0);
+      p += `<line x1="${fx}" y1="${fy}" x2="${fxi}" y2="${fyi}" stroke="#e7cf86" stroke-width="1.4" opacity=".55"/>`;
+      // number
+      const mid = (i*SEG - 90) * Math.PI/180;
+      const tx = cx + (rPocket+24)*Math.cos(mid), ty = cy + (rPocket+24)*Math.sin(mid);
+      p += `<text x="${tx}" y="${ty}" fill="#fff" font-size="16" font-family="Georgia,serif" font-weight="bold"
+              text-anchor="middle" dominant-baseline="central"
+              transform="rotate(${i*SEG} ${tx} ${ty})">${num}</text>`;
     });
 
-    parts += `<circle cx="${cx}" cy="${cy}" r="${rInner}" fill="none" stroke="#d4af37" stroke-width="3"/>`;
-    parts += `</svg>`;
-    document.getElementById('wheel').innerHTML = parts;
+    p += `<circle cx="${cx}" cy="${cy}" r="${rIn}" fill="none" stroke="#d4af37" stroke-width="3"/>
+          <circle cx="${cx}" cy="${cy}" r="${rOut}" fill="url(#sheen)" pointer-events="none"/>
+          </svg>`;
+    document.getElementById('wheelFace').innerHTML = p;
   })();
 
-  // ---- State ----
-  const wheel = document.getElementById('wheel');
+  /* ============ DOM ============ */
+  const wheelFace = document.getElementById('wheelFace');
+  const ballArm = document.getElementById('ballArm');
+  const ball = document.getElementById('ball');
+  const ballShadow = document.getElementById('ballShadow');
   const spinBtn = document.getElementById('spinBtn');
   const resultNumber = document.getElementById('resultNumber');
   const resultMeta = document.getElementById('resultMeta');
   const historyList = document.getElementById('historyList');
+  const recent = document.getElementById('recent');
   const emptyMsg = document.getElementById('emptyMsg');
-  const clearBtn = document.getElementById('clearBtn');
 
-  let currentRotation = 0;
-  let spinning = false;
-  let spinCount = 0;
-  const counts = { red: 0, black: 0, green: 0 };
+  const TILT = 58;                 // matches CSS rotateX
+  const R_OUTER = 0.92;            // ball track radius (fraction of half-wheel)
+  const R_RING  = 0.70;            // resting radius in the number ring
+  let spinning = false, spinCount = 0;
+  const counts = { red:0, black:0, green:0 };
 
-  function spin() {
-    if (spinning) return;
-    spinning = true;
-    spinBtn.disabled = true;
-    resultMeta.textContent = 'No more bets — the ball is rolling…';
-
-    // Random result via crypto for fairness
-    const idx = randomIndex(N);
-    const number = ORDER[idx];
-
-    // Pointer sits at top (12 o'clock). Pocket idx center angle from top = idx * SEG.
-    // To land it at the top we rotate the wheel so that pocket comes under the pointer.
-    const targetAngle = 360 - (idx * SEG);
-    const extraSpins = 5 + Math.floor(Math.random() * 3); // 5–7 full turns
-    // jitter within the pocket so it doesn't always stop dead center
-    const jitter = (Math.random() - 0.5) * (SEG * 0.6);
-
-    currentRotation += extraSpins * 360 + (targetAngle - (currentRotation % 360)) + jitter;
-    wheel.style.transform = `rotate(${currentRotation}deg)`;
-
-    setTimeout(() => finishSpin(number), 6050);
+  function setBall(angleDeg, radiusFrac, hopPx) {
+    const r = radiusFrac * 0.5 * getWheelPx();
+    ballArm.style.transform = `rotateZ(${angleDeg}deg)`;
+    // counter-rotate so ball faces camera; lift with translateZ for the hop
+    ball.style.transform =
+      `translateX(${r}px) translateZ(${hopPx}px) rotateX(${-TILT}deg)`;
+    ballShadow.style.transform =
+      `translateX(${r}px) translateX(${hopPx*0.35}px) scale(${1 - Math.min(hopPx/120,0.5)})`;
+    ballShadow.style.opacity = (0.55 - Math.min(hopPx/200, 0.4)).toFixed(2);
+  }
+  function getWheelPx() {
+    return document.querySelector('.tilt').getBoundingClientRect().width || 600;
   }
 
-  function finishSpin(number) {
+  /* ============ Audio (synth, no files) ============ */
+  let actx = null, noiseBuf = null, roll = null, rumble = null, soundOn = true;
+  function ensureAudio() {
+    if (actx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { soundOn = false; return; }
+    actx = new AC();
+    const len = actx.sampleRate * 2;
+    noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
+  }
+  function startBeds() {
+    if (!actx) return;
+    // ball rolling: looping noise -> bandpass -> gain
+    roll = {};
+    roll.src = actx.createBufferSource(); roll.src.buffer = noiseBuf; roll.src.loop = true;
+    roll.bp = actx.createBiquadFilter(); roll.bp.type = 'bandpass'; roll.bp.Q.value = 1.2;
+    roll.g = actx.createGain(); roll.g.gain.value = 0;
+    roll.src.connect(roll.bp); roll.bp.connect(roll.g); roll.g.connect(actx.destination);
+    roll.src.start();
+    // wheel rumble: low noise
+    rumble = {};
+    rumble.src = actx.createBufferSource(); rumble.src.buffer = noiseBuf; rumble.src.loop = true;
+    rumble.lp = actx.createBiquadFilter(); rumble.lp.type = 'lowpass'; rumble.lp.frequency.value = 180;
+    rumble.g = actx.createGain(); rumble.g.gain.value = 0;
+    rumble.src.connect(rumble.lp); rumble.lp.connect(rumble.g); rumble.g.connect(actx.destination);
+    rumble.src.start();
+  }
+  function updateBeds(ballSpeed, wheelSpeed) {
+    if (!actx || !soundOn) return;
+    const bs = Math.min(ballSpeed/22, 1);
+    roll.g.gain.setTargetAtTime(0.05 + bs*0.16, actx.currentTime, 0.05);
+    roll.bp.frequency.setTargetAtTime(700 + bs*2600, actx.currentTime, 0.05);
+    rumble.g.gain.setTargetAtTime(Math.min(wheelSpeed/30,1)*0.10, actx.currentTime, 0.08);
+  }
+  function stopBeds() {
+    if (!actx) return;
+    [roll, rumble].forEach(n => { if (n) { n.g.gain.setTargetAtTime(0, actx.currentTime, 0.2);
+      try { n.src.stop(actx.currentTime + 0.6); } catch(e){} } });
+    roll = rumble = null;
+  }
+  function clack(vol) {
+    if (!actx || !soundOn) return;
+    const t = actx.currentTime;
+    const s = actx.createBufferSource(); s.buffer = noiseBuf;
+    s.playbackRate.value = 0.8 + Math.random()*0.6;
+    const bp = actx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value = 1400 + Math.random()*2200; bp.Q.value = 5;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t+0.002);
+    g.gain.exponentialRampToValueAtTime(0.0008, t+0.045);
+    s.connect(bp); bp.connect(g); g.connect(actx.destination);
+    s.start(t); s.stop(t+0.06);
+  }
+  function thud() {
+    if (!actx || !soundOn) return;
+    const t = actx.currentTime;
+    const o = actx.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(220,t);
+    o.frequency.exponentialRampToValueAtTime(70,t+0.18);
+    const g = actx.createGain(); g.gain.setValueAtTime(0.25,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+0.3);
+  }
+
+  /* ============ Random (fair) ============ */
+  function randIndex(max) {
+    if (window.crypto?.getRandomValues) {
+      const limit = Math.floor(0xffffffff / max) * max;
+      const b = new Uint32Array(1); let x;
+      do { crypto.getRandomValues(b); x = b[0]; } while (x >= limit);
+      return x % max;
+    }
+    return Math.floor(Math.random()*max);
+  }
+  const easeOutQuint = p => 1 - Math.pow(1-p, 5);
+  const easeOutCubic = p => 1 - Math.pow(1-p, 3);
+
+  /* ============ Spin ============ */
+  function spin() {
+    if (spinning) return;
+    spinning = true; spinBtn.disabled = true;
+    resultMeta.textContent = 'No more bets — round and round she goes…';
+    resultNumber.textContent = '…';
+    resultNumber.className = 'result-number num-green';
+
+    if (soundOn) { ensureAudio(); if (actx?.state === 'suspended') actx.resume(); startBeds(); }
+
+    const target = randIndex(N);
+    const number = ORDER[target];
+
+    // randomized character of this spin
+    const T = 9000 + Math.random()*4500;                 // 9–13.5s
+    const wheelTurns = 4 + Math.floor(Math.random()*3);   // 4–6
+    const ballTurns  = 9 + Math.floor(Math.random()*6);   // 9–14 (opposite dir)
+    const bounceCount = 2 + Math.floor(Math.random()*6);  // how much it rattles
+    const bounceAmp   = 14 + Math.random()*26;
+
+    // wheel ends so the winning pocket sits under the top pointer
+    const wheelEnd = ((-target*SEG) % 360 + 360) % 360;
+    const wheelTotal = wheelTurns*360 + wheelEnd;
+
+    const ballEnd = -90;                                  // top (under pointer)
+    const ballTotal = ballTurns*360;                      // travelled before settling
+
+    const t0 = performance.now();
+    let lastFret = 0, lastTick = 0, prevBall = 0;
+
+    function frame(now) {
+      let p = (now - t0) / T;
+      if (p > 1) p = 1;
+
+      // ---- wheel ----
+      const wEase = easeOutQuint(p);
+      const wheelAngle = wheelTotal * wEase;
+      wheelFace.style.transform = `rotateZ(${wheelAngle}deg)`;
+      const wheelSpeed = wheelTotal*(5*Math.pow(1-p,4))/ (T/16.7) ; // approx deg/frame
+
+      // ---- ball angle (opposite direction, decelerating) ----
+      const bEase = easeOutQuint(p);
+      const ballAngle = ballEnd - ballTotal*(1 - bEase);   // sweeps down to ballEnd
+      const ballSpeed = Math.abs(ballAngle - prevBall);
+      prevBall = ballAngle;
+
+      // ---- radius: stay out, then spiral in past ~50% ----
+      let radius;
+      if (p < 0.5) {
+        radius = R_OUTER - 0.015*Math.sin(p*40);          // slight wobble on the track
+      } else {
+        const q = (p - 0.5) / 0.5;                        // 0..1 inward phase
+        radius = R_OUTER + (R_RING - R_OUTER)*easeOutCubic(q);
+      }
+
+      // ---- vertical hop / bounces while descending and settling ----
+      let hop = 0;
+      if (p > 0.5) {
+        const q = (p - 0.5) / 0.5;
+        const decay = Math.pow(1-q, 1.7);
+        hop = Math.abs(Math.sin(q*Math.PI*bounceCount)) * bounceAmp * decay;
+      }
+
+      setBall(ballAngle, radius, hop);
+
+      // ---- audio drive ----
+      updateBeds(ballSpeed, Math.max(wheelSpeed,0));
+      // fret clacks: each pocket the ball crosses, throttled; livelier as it bounces
+      const fretIdx = Math.floor(-ballAngle / SEG);
+      if (fretIdx !== lastFret && (now - lastTick) > 24) {
+        const vol = 0.04 + Math.min(ballSpeed/20, 1)*0.16 + (hop>2?0.05:0);
+        clack(vol);
+        lastFret = fretIdx; lastTick = now;
+      }
+
+      if (p < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        setBall(ballEnd, R_RING, 0);
+        thud();
+        stopBeds();
+        finish(number);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(number) {
     const color = colorOf(number);
     spinCount++;
-
-    // Result card
     resultNumber.textContent = number;
     resultNumber.className = 'result-number num-' + color + ' pop';
-    setTimeout(() => resultNumber.classList.remove('pop'), 320);
+    setTimeout(() => resultNumber.classList.remove('pop'), 360);
     resultMeta.textContent = describe(number, color);
 
-    // Stats
     counts[color]++;
-    document.getElementById('statRed').textContent = counts.red;
-    document.getElementById('statBlack').textContent = counts.black;
-    document.getElementById('statGreen').textContent = counts.green;
-    document.getElementById('statTotal').textContent = spinCount;
+    statRed.textContent = counts.red; statBlack.textContent = counts.black;
+    statGreen.textContent = counts.green; statTotal.textContent = spinCount;
 
-    // History entry
-    if (emptyMsg) emptyMsg.remove();
+    if (emptyMsg && emptyMsg.parentNode) emptyMsg.remove();
     const li = document.createElement('li');
     li.innerHTML =
       `<span class="spin-no">#${spinCount}</span>` +
       `<span class="chip num-${color}">${number}</span>` +
-      `<span class="spin-meta">${capitalize(color === 'green' ? 'Zero' : color)}${number !== 0 ? ' · ' + (number % 2 === 0 ? 'Even' : 'Odd') : ''}</span>`;
+      `<span class="spin-meta">${cap(color==='green'?'Zero':color)}` +
+      `${number!==0 ? ' · ' + (number%2===0?'Even':'Odd') : ''}</span>`;
     historyList.prepend(li);
 
-    spinning = false;
-    spinBtn.disabled = false;
+    const pill = document.createElement('span');
+    pill.className = 'pill num-' + color; pill.textContent = number;
+    recent.prepend(pill);
+    while (recent.children.length > 12) recent.lastChild.remove();
+
+    spinning = false; spinBtn.disabled = false;
   }
 
-  function describe(number, color) {
-    if (number === 0) return 'Zero — the house pocket!';
-    const parity = number % 2 === 0 ? 'Even' : 'Odd';
-    const range = number <= 18 ? 'Low (1–18)' : 'High (19–36)';
-    return `${capitalize(color)} · ${parity} · ${range}`;
-  }
+  const describe = (n,c) => n===0 ? 'Zero — the house pocket!'
+    : `${cap(c)} · ${n%2===0?'Even':'Odd'} · ${n<=18?'Low (1–18)':'High (19–36)'}`;
+  const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 
-  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  /* ============ Controls ============ */
+  spinBtn.addEventListener('click', spin);
 
-  // Unbiased random index using crypto when available
-  function randomIndex(max) {
-    if (window.crypto && window.crypto.getRandomValues) {
-      const limit = Math.floor(0xffffffff / max) * max;
-      const buf = new Uint32Array(1);
-      let x;
-      do { window.crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
-      return x % max;
-    }
-    return Math.floor(Math.random() * max);
-  }
-
-  clearBtn.addEventListener('click', () => {
+  document.getElementById('clearBtn').addEventListener('click', () => {
     historyList.innerHTML = '<li class="empty" id="emptyMsg">No spins yet.</li>';
-    spinCount = 0;
-    counts.red = counts.black = counts.green = 0;
-    ['statRed','statBlack','statGreen','statTotal'].forEach(id => document.getElementById(id).textContent = '0');
-    resultNumber.textContent = '–';
-    resultNumber.className = 'result-number num-green';
-    resultMeta.textContent = 'History cleared — ready for the next round.';
+    recent.innerHTML = '';
+    spinCount = 0; counts.red = counts.black = counts.green = 0;
+    [statRed,statBlack,statGreen,statTotal].forEach(e => e.textContent='0');
+    resultNumber.textContent='–'; resultNumber.className='result-number num-green';
+    resultMeta.textContent='History cleared — ready for the next round.';
   });
 
-  spinBtn.addEventListener('click', spin);
+  const soundBtn = document.getElementById('soundBtn');
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = soundOn ? '🔊 Sound' : '🔇 Muted';
+    soundBtn.classList.toggle('off', !soundOn);
+    if (soundOn) { ensureAudio(); if (actx?.state==='suspended') actx.resume(); }
+  });
+
+  document.getElementById('fsBtn').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+
+  // park the ball on the track at rest
+  setBall(-90, R_OUTER, 0);
+  window.addEventListener('resize', () => { if (!spinning) setBall(-90, R_OUTER, 0); });
 </script>
 </body>
 </html>
