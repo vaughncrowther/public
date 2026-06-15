@@ -831,9 +831,9 @@
   const ri  = (a,b) => a + Math.floor(Math.random()*(b-a+1));
   // each force changes spin length, number of turns and how hard the ball rattles
   const SPIN_PRESETS = {
-    gentle: { T:()=>rnd(15000,18500), wheel:()=>ri(7,10),  ball:()=>ri(16,22), rest:()=>rnd(0.55,0.66), H:()=>rnd(0.18,0.26) },
-    normal: { T:()=>rnd(18000,22000), wheel:()=>ri(9,13),  ball:()=>ri(20,28), rest:()=>rnd(0.60,0.72), H:()=>rnd(0.26,0.38) },
-    hard:   { T:()=>rnd(21000,25000), wheel:()=>ri(12,18), ball:()=>ri(26,36), rest:()=>rnd(0.66,0.80), H:()=>rnd(0.34,0.50) },
+    gentle: { T:()=>rnd(16000,18000), wheel:()=>ri(7,10),  ball:()=>ri(16,22), rest:()=>rnd(0.55,0.66), H:()=>rnd(0.18,0.26) },
+    normal: { T:()=>rnd(18000,21000), wheel:()=>ri(9,13),  ball:()=>ri(20,28), rest:()=>rnd(0.60,0.72), H:()=>rnd(0.26,0.38) },
+    hard:   { T:()=>rnd(19500,22500), wheel:()=>ri(12,18), ball:()=>ri(26,36), rest:()=>rnd(0.66,0.80), H:()=>rnd(0.34,0.50) },
   };
   let selectedStrength = 'normal';
 
@@ -848,113 +848,115 @@
 
     if (soundOn) { ensureAudio(); if (actx?.state === 'suspended') actx.resume(); startBeds(); }
 
-    const target = randIndex(N);
-    const number = ORDER[target];
     const panOf = a => Math.max(-1, Math.min(1, Math.cos(a*Math.PI/180))) * 0.85;
-    const easeInQuad = q => q*q;
+    const target = randIndex(N);                         // fair, uniform draw (crypto)
 
-    // character of this spin, driven by the chosen force
-    const T = cfg.T();
-    const wheelTurns = cfg.wheel();
-    const ballTurns  = cfg.ball();
+    // ================= physics simulation (degrees & seconds) =================
+    const T = cfg.T();                                   // overall feel (ms)
+    const tRim = (T*0.80) / 1000;                        // seconds the ball rides the rim
+    const ballRevs  = cfg.ball();
+    const wheelRevs = cfg.wheel();
 
-    // the wheel comes to rest at an ARBITRARY angle — so the ball can land anywhere
-    const wheelTotal = wheelTurns*360 + Math.random()*360;
-    const wheelFinal = wheelTotal;                         // easeOut(1) = 1
-    const pocketOffset = target*SEG - 90;                  // target pocket on the wheel face
-    const ballSettleAbs = wheelFinal + pocketOffset;       // absolute angle the ball rests at
-    const ballSpin = ballTurns*360;                        // counter-rotates down to settle
+    // ball: travels opposite (negative) the wheel, decelerating on the rim
+    const omegaDrop = 190 + Math.random()*70;            // deg/s at which it leaves the rim
+    const ballTravel = ballRevs*360;
+    let ballVel = -(2*ballTravel/tRim - omegaDrop);      // initial ball speed (deg/s)
+    const ballDecel = (Math.abs(ballVel) - omegaDrop) / tRim;
 
-    // ---- REAL gravity bounce schedule (true airtimes -> snappy, Earth-like) ----
-    const G = 4200;                                        // px/s^2, gravity (tuned)
-    const restitution = cfg.rest();
-    let H = R * cfg.H();                                   // first (highest) bounce height (px)
-    const heights = [], airtimes = [];
-    while (H > R*0.012 && heights.length < 16) {
-      heights.push(H);
-      airtimes.push(2 * Math.sqrt(2*H / G));              // seconds in the air for this hop
-      H *= restitution * (0.65 + Math.random()*0.6);      // randomised energy loss = chaotic heights
-    }
-    const tBounceMs = airtimes.reduce((a,b)=>a+b, 0) * 1000;
-    const bStart = []; let accB = 0;
-    for (const a of airtimes) { bStart.push(accB); accB += a*1000; }
-    // random ricochet (sideways + radial) off the counter-spinning wheel, decaying to land true
-    const decay = i => Math.pow(1 - i/heights.length, 1.25);
-    const jit  = heights.map((_,i) => (Math.random()*2-1) * SEG * 1.5 * decay(i));   jit.push(0, 0);
-    const rJit = heights.map((_,i) => (Math.random()*2-1) * 0.05 * decay(i));        rJit.push(0, 0);
+    // wheel: positive direction, coasts to rest over ~T
+    const tWheel = T/1000;
+    let wheelVel = 2*(wheelRevs*360)/tWheel;             // deg/s
+    const wheelDecel = wheelVel / tWheel;
 
-    // the whole drop+settle is SHORT and realistic; the rest of T is the rim ride
-    const tDescentMs = 500 + Math.random()*450;            // brief drift down to the wheel head
-    const tSettleMs  = 400;
-    const tFallMs    = tDescentMs + tBounceMs + tSettleMs;
-    const dropStart  = Math.max(T*0.42, T - tFallMs);      // ms: long anticipation, then drop
-    const R_LAND = R_RING + 0.06;                          // where the ball first meets the wheel head
+    // vertical bounce dynamics
+    const Gv = 3000;                                      // px/s^2
+    const e_v = cfg.rest();                               // restitution
+    const firstH = R * cfg.H();                           // first bounce height (px)
+    const R_LAND = R_RING + 0.05;
 
-    const t0 = performance.now();
-    let lastFret = -1, lastTickMs = 0, lastSeg = -1, lastDefl = -1;
+    let ballPos = 0, wheelPos = 0;
+    let radius = R_OUTER, z = 0, vz = 0;
+    let phase = 'rim', descT = 0;
+    let resultIdx = -1, rideOffset = 0, snapFrom = 0, snapStart = 0;
+    let lastFret = -1, lastTickMs = 0, last = performance.now(), t0 = last;
+
+    const baseOff = target*SEG - 90;                     // target pocket on the wheel face
+    const capture = () => {                              // ball drops home into the pocket
+      resultIdx = target;
+      rideOffset = baseOff + 360*Math.round((ballPos - wheelPos - baseOff)/360);
+      snapFrom = ballPos - wheelPos;                     // ease the sub-pocket settle, no snap
+      snapStart = performance.now();
+      ballVel = wheelVel; z = 0; vz = 0; radius = R_RING;
+      phase = 'settling';
+      thud();
+    };
 
     function frame(now) {
+      let dt = (now - last)/1000; if (dt > 0.05) dt = 0.05; last = now;
       const elapsed = now - t0;
-      let p = elapsed / T; if (p > 1) p = 1;
-      const decel = Math.pow(1-p, 4);
 
-      wheelFace.style.transform = `rotateZ(${wheelTotal * easeOutQuint(p)}deg)`;
+      // the wheel always coasts toward rest
+      wheelVel = Math.max(0, wheelVel - wheelDecel*dt);
+      wheelPos += wheelVel*dt;
 
-      // base ball angle: counter-rotates, decelerating toward the settle point
-      let ballAngle = ballSettleAbs + ballSpin*(1 - easeOutQuint(p));
-      let radius = R_OUTER, lift = 0, rollNorm = 0;
-
-      if (elapsed < dropStart) {
-        // ---- riding the rim, slowing down ----
+      if (phase === 'rim') {
+        ballVel += ballDecel*dt;                         // magnitude shrinks (ball is negative)
+        ballPos += ballVel*dt;
         radius = R_OUTER - 0.012*Math.sin(elapsed/45);
-        rollNorm = decel;
-        const fret = Math.floor(-ballAngle / SEG);
-        if (fret !== lastFret && (now - lastTickMs) > 18) {
-          const sp = 1 - elapsed/dropStart;
-          clack(0.05 + sp*0.10, 1500 + sp*1300, panOf(ballAngle));
+        const fret = Math.floor(-ballPos / SEG);
+        if (fret !== lastFret && (now - lastTickMs) > 16) {
+          const sp = Math.min(1, Math.abs(ballVel)/700);
+          clack(0.04 + sp*0.10, 1300 + sp*1500, panOf(ballPos));
           lastFret = fret; lastTickMs = now;
         }
-      } else {
-        const fall = elapsed - dropStart;                 // ms into the fall
-        if (fall < tDescentMs) {
-          // ---- centripetal force fades: ball spirals down the bowl onto the wheel head ----
-          const q = fall / tDescentMs;
-          radius = R_OUTER + (R_LAND - R_OUTER)*easeInQuad(q);
-          rollNorm = decel * Math.max(0, 1 - q);
-          const d = Math.floor(-ballAngle / (SEG*2));
-          if (d !== lastDefl) { clack(0.12, 1050, panOf(ballAngle)); lastDefl = d; }
-        } else if (fall < tDescentMs + tBounceMs) {
-          // ---- bouncing ON the wheel head: high & random first, then settling ----
-          const bt = fall - tDescentMs;
-          let seg = 0;
-          while (seg < bStart.length-1 && bt >= bStart[seg+1]) seg++;
-          const tau = Math.min(1, (bt - bStart[seg]) / (airtimes[seg]*1000));
-          lift = 4 * heights[seg] * tau * (1 - tau);      // real parabolic hop (first is highest)
-          // already in the number ring, wobbling between pockets as it ricochets
-          const rk = rJit[seg] + (rJit[seg+1]-rJit[seg])*tau;
-          radius = R_LAND + (R_RING - R_LAND)*Math.min(1, seg/2) + rk;
-          ballAngle += jit[seg] + (jit[seg+1]-jit[seg])*tau;
-          if (seg !== lastSeg) {                          // each landing on the wheel = a clack
-            clack(Math.max(0.06, 0.24*Math.pow(restitution,seg)+0.05), 1250 - seg*22, panOf(ballAngle));
-            lastSeg = seg;
-          }
-        } else {
-          // ---- settled: resting in the pocket, riding with the wheel ----
-          radius = R_RING; lift = 0;
+        if (ballVel >= -omegaDrop) { phase = 'descend'; descT = 0; }
+      } else if (phase === 'descend') {
+        descT += dt;
+        ballVel += ballDecel*0.5*dt;
+        ballPos += ballVel*dt;
+        const q = Math.min(1, descT/0.55);               // ~0.55s drift down the bowl
+        radius = R_OUTER + (R_LAND - R_OUTER)*q*q;
+        if (q >= 1) { phase = 'bounce'; z = 0; vz = Math.sqrt(2*Gv*firstH); clack(0.14, 1000, panOf(ballPos)); }
+      } else if (phase === 'bounce') {
+        // KEY: the ball keeps travelling & rattling while it bounces. A gentle pull keeps
+        // it near the (fair, pre-drawn) pocket; random fret hits scatter it around — so it
+        // skips between neighbouring pockets and settles, like the real thing.
+        const want = wheelPos + baseOff + 360*Math.round((ballPos - wheelPos - baseOff)/360);
+        const gap = want - ballPos;
+        ballVel += gap * 6 * dt;                         // soft spring toward the drawn pocket
+        ballVel += (wheelVel - ballVel) * 1.5 * dt;      // friction toward the wheel
+        ballPos += ballVel*dt;
+        vz -= Gv*dt; z += vz*dt;
+        if (z <= 0) {                                    // struck the spinning wheel head
+          z = 0;
+          const impact = -vz;
+          vz = impact * e_v * (0.75 + Math.random()*0.5);
+          ballVel += (Math.random()*2-1) * Math.min(90, impact*0.12 + 25); // random ricochet
+          clack(Math.min(0.22, 0.05 + impact/2600), 1150 + Math.random()*500, panOf(ballPos));
+          if (vz < 45 && Math.abs(gap) < SEG*0.5) capture();
         }
+        radius = R_RING + 0.06*Math.min(1, z/(R*0.35));  // rides up the pocket wall when high
+      } else if (phase === 'settling') {
+        const k = Math.min(1, (now - snapStart)/250);    // ease into the pocket centre
+        const e = 1 - Math.pow(1-k, 3);
+        ballPos = wheelPos + (snapFrom + (rideOffset - snapFrom)*e);
+        radius = R_RING; z = 0;
+        if (k >= 1) phase = 'settled';
+      } else {                                            // settled — rides the wheel to a stop
+        ballPos = wheelPos + rideOffset; radius = R_RING; z = 0;
       }
 
-      setBall(ballAngle, radius, lift);
-      updateBeds(decel, rollNorm, panOf(ballAngle));
+      setBall(ballPos, radius, z);
+      const rollN = (phase==='rim'||phase==='descend') ? Math.min(1, Math.abs(ballVel)/700) : 0;
+      updateBeds(Math.min(1, wheelVel/200), rollN, panOf(ballPos));
 
-      if (p < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        setBall(ballSettleAbs, R_RING, 0);
-        clack(0.1, 900, panOf(ballSettleAbs));
-        thud();
+      if (phase !== 'settling' && phase !== 'settled' && elapsed > T + 9000) capture(); // safety
+
+      if (phase === 'settled' && wheelVel <= 4) {
         stopBeds();
-        finish(number);
+        finish(ORDER[resultIdx]);
+      } else {
+        requestAnimationFrame(frame);
       }
     }
     requestAnimationFrame(frame);
