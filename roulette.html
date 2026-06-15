@@ -898,6 +898,7 @@
       // the wheel always coasts toward rest
       wheelVel = Math.max(0, wheelVel - wheelDecel*dt);
       wheelPos += wheelVel*dt;
+      wheelFace.style.transform = `rotateZ(${wheelPos}deg)`;
 
       if (phase === 'rim') {
         ballVel += ballDecel*dt;                         // magnitude shrinks (ball is negative)
