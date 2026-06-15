@@ -253,6 +253,54 @@
   }
   button.spin:disabled { opacity: .55; cursor: not-allowed; }
 
+  /* spin-strength segmented control */
+  .strength { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; }
+  .strength .s-label {
+    font-size: clamp(.68rem, 1.1vw, .9rem); color: #bcd6c0; letter-spacing: 1.5px;
+    text-transform: uppercase; margin-right: 10px;
+  }
+  .strength button {
+    font-family: inherit; cursor: pointer;
+    background: rgba(0,0,0,.32); color: #e6ddc4;
+    border: 1px solid rgba(212,175,55,.5); border-left: none;
+    padding: 7px clamp(14px, 1.8vw, 22px);
+    font-size: clamp(.72rem, 1.1vw, .95rem); letter-spacing: 1px;
+    transition: background .15s, color .15s;
+  }
+  .strength button:nth-of-type(1) { border-left: 1px solid rgba(212,175,55,.5); border-radius: 22px 0 0 22px; }
+  .strength button:nth-of-type(3) { border-radius: 0 22px 22px 0; }
+  .strength button.active {
+    background: linear-gradient(#f6e08a, var(--gold) 60%, #b9952c);
+    color: #2a1a05; font-weight: bold;
+  }
+  .flick-tip {
+    font-size: clamp(.62rem, .95vw, .8rem); color: #9fb8a4; font-style: italic;
+    opacity: .8; text-align: center; max-width: 32ch;
+  }
+  .scene { cursor: grab; }
+  .scene:active { cursor: grabbing; }
+
+  /* hot / cold trends board */
+  .trends {
+    margin-bottom: 10px; padding: 9px 8px;
+    background: rgba(0,0,0,.22); border: 1px solid rgba(212,175,55,.3); border-radius: 10px;
+  }
+  .trend-row { display: flex; align-items: center; gap: 8px; padding: 3px 2px; }
+  .trend-k {
+    width: 62px; flex: 0 0 auto;
+    font-size: clamp(.64rem, 1vw, .82rem); color: #bcd6c0; letter-spacing: .5px;
+  }
+  .trend-v {
+    display: flex; gap: 5px; flex-wrap: wrap; align-items: center;
+    font-size: clamp(.74rem, 1vw, .92rem); color: #e6ddc4;
+  }
+  .mini {
+    width: clamp(22px, 2.6vw, 32px); height: clamp(22px, 2.6vw, 32px);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: bold; color: #fff; font-size: clamp(.62rem, 1vw, .82rem);
+    border: 1px solid rgba(255,255,255,.3);
+  }
+
   /* ---------- History ---------- */
   .history {
     grid-column: 2;
@@ -286,22 +334,66 @@
   .stats .black b { color: #d6d6d6; }
   .stats .green b { color: #6fe39a; }
 
-  .recent {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-    justify-content: center;
+  /* current winning number (sidebar) */
+  .winner {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; margin-bottom: 12px;
   }
-  .recent .pill {
-    width: clamp(26px, 3vw, 40px);
-    height: clamp(26px, 3vw, 40px);
+  .winner-num {
+    width: clamp(72px, 9vw, 110px); height: clamp(72px, 9vw, 110px);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-weight: bold; color: #fff;
-    font-size: clamp(.7rem, 1.1vw, 1rem);
-    border: 2px solid rgba(255,255,255,.3);
-    box-shadow: 0 2px 5px rgba(0,0,0,.4);
+    font-size: clamp(2.1rem, 4.5vw, 3.4rem); font-weight: bold; color: #fff;
+    border: 3px solid var(--gold);
+    box-shadow: 0 5px 16px rgba(0,0,0,.55), inset 0 0 14px rgba(0,0,0,.35);
+    transition: transform .35s cubic-bezier(.2,1.6,.4,1);
+  }
+  .winner-num.pop { transform: scale(1.16); }
+  .winner-sub {
+    font-style: italic; color: #e6ddc4; font-size: clamp(.74rem, 1.1vw, .95rem);
+    text-align: center; min-height: 1.2em;
+  }
+  .hist-label {
+    text-align: center; color: #bcd6c0; letter-spacing: 2px; text-transform: uppercase;
+    font-size: clamp(.66rem, 1vw, .82rem); opacity: .8; margin: 2px 0 6px;
+  }
+
+  /* big-win celebration overlay */
+  .celebrate {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; opacity: 0; visibility: hidden;
+    background: radial-gradient(circle at 50% 45%, rgba(10,125,52,.35), rgba(0,0,0,.55) 70%);
+    transition: opacity .25s;
+  }
+  .celebrate.show { opacity: 1; visibility: visible; animation: bgflash 1.2s ease-in-out infinite alternate; }
+  @keyframes bgflash {
+    from { background: radial-gradient(circle at 50% 45%, rgba(10,125,52,.35), rgba(0,0,0,.55) 70%); }
+    to   { background: radial-gradient(circle at 50% 45%, rgba(212,175,55,.4), rgba(0,0,0,.6) 70%); }
+  }
+  .big-win { text-align: center; animation: bwpulse .7s ease-in-out infinite; }
+  @keyframes bwpulse { 0%,100% { transform: scale(1);} 50% { transform: scale(1.1);} }
+  .bw-top {
+    font-size: clamp(1.6rem, 5vw, 4rem); letter-spacing: 4px; color: var(--gold-light);
+    text-shadow: 0 0 18px rgba(212,175,55,.9), 0 4px 8px rgba(0,0,0,.7);
+  }
+  .bw-num {
+    font-size: clamp(6rem, 22vw, 18rem); font-weight: bold; line-height: 1;
+    color: #fff; margin: 0.1em 0;
+    text-shadow: 0 0 30px rgba(111,227,154,.9), 0 0 60px rgba(10,125,52,.8), 0 6px 14px rgba(0,0,0,.7);
+  }
+  .bw-sub {
+    font-size: clamp(1rem, 3vw, 2.2rem); font-style: italic; color: #f1e9cf;
+    text-shadow: 0 2px 6px rgba(0,0,0,.7);
+  }
+  .confetti { position: absolute; inset: 0; overflow: hidden; }
+  .confetti i {
+    position: absolute; top: -12vh; width: 10px; height: 16px; border-radius: 2px;
+    will-change: transform, opacity; animation: confall linear forwards;
+  }
+  @keyframes confall {
+    0%   { transform: translateY(-12vh) rotateZ(0deg); opacity: 1; }
+    100% { transform: translateY(115vh) rotateZ(900deg); opacity: .85; }
   }
 
   .history-list {
@@ -410,18 +502,38 @@
         </div>
       </div>
 
+      <div class="strength" id="strength">
+        <span class="s-label">Spin force</span>
+        <button data-s="gentle">Gentle</button>
+        <button data-s="normal" class="active">Normal</button>
+        <button data-s="hard">Hard</button>
+      </div>
+
       <button class="spin" id="spinBtn">Spin the Wheel</button>
+      <div class="flick-tip">Tip: you can also grab &amp; flick the wheel — a slow drag spins gentle, a fast swipe spins hard.</div>
     </div>
 
     <aside class="history">
-      <h2>Spin History</h2>
+      <h2>Last Result</h2>
+      <div class="winner">
+        <div class="winner-num num-green" id="winnerNum">–</div>
+        <div class="winner-sub" id="winnerSub">Place your bets…</div>
+      </div>
+
       <div class="stats">
         <div class="red"><b id="statRed">0</b>Red</div>
         <div class="black"><b id="statBlack">0</b>Black</div>
         <div class="green"><b id="statGreen">0</b>Zero</div>
         <div><b id="statTotal">0</b>Total</div>
       </div>
-      <div class="recent" id="recent"></div>
+
+      <div class="trends">
+        <div class="trend-row"><span class="trend-k">🔥 Hot</span><span class="trend-v" id="hotNums">—</span></div>
+        <div class="trend-row"><span class="trend-k">❄️ Cold</span><span class="trend-v" id="coldNums">—</span></div>
+        <div class="trend-row"><span class="trend-k">Streak</span><span class="trend-v" id="streakV">—</span></div>
+      </div>
+
+      <div class="hist-label">History</div>
       <ul class="history-list" id="historyList">
         <li class="empty" id="emptyMsg">No spins yet.</li>
       </ul>
@@ -449,6 +561,15 @@
         <div class="note">European single-zero wheel · house edge 2.7%</div>
       </div>
     </aside>
+  </div>
+
+  <div class="celebrate" id="celebrate">
+    <div class="confetti" id="confetti"></div>
+    <div class="big-win">
+      <div class="bw-top">★ BIG WIN ★</div>
+      <div class="bw-num" id="bwNum">0</div>
+      <div class="bw-sub">ZERO — the house pays!</div>
+    </div>
   </div>
 
 <script>
@@ -514,7 +635,8 @@
   const resultNumber = document.getElementById('resultNumber');
   const resultMeta = document.getElementById('resultMeta');
   const historyList = document.getElementById('historyList');
-  const recent = document.getElementById('recent');
+  const winnerNum = document.getElementById('winnerNum');
+  const winnerSub = document.getElementById('winnerSub');
   const emptyMsg = document.getElementById('emptyMsg');
 
   const KY = 0.55;                 // vertical squish (matches CSS scaleY) = bowl angle
@@ -523,7 +645,26 @@
   const ballLayer = document.getElementById('ballLayer');
   let spinning = false, spinCount = 0;
   const counts = { red:0, black:0, green:0 };
+  const freq = new Array(37).fill(0);
+  const lastSeen = new Array(37).fill(0);
+  let streakColor = null, streakLen = 0;
   let cx = 0, cy = 0, R = 300;
+
+  function renderTrends() {
+    const idx = [...Array(37).keys()];
+    const pills = arr => arr.length
+      ? arr.map(n => `<span class="mini num-${colorOf(n)}">${n}</span>`).join('') : '—';
+    const hot = idx.filter(n => freq[n] > 0)
+                   .sort((a,b) => freq[b]-freq[a] || a-b).slice(0,3);
+    // "cold" = most overdue: longest since last seen (never-seen counts as overdue)
+    const cold = idx.slice()
+                   .sort((a,b) => (spinCount-lastSeen[b])-(spinCount-lastSeen[a]) || freq[a]-freq[b])
+                   .slice(0,3);
+    document.getElementById('hotNums').innerHTML  = spinCount ? pills(hot)  : '—';
+    document.getElementById('coldNums').innerHTML = spinCount ? pills(cold) : '—';
+    document.getElementById('streakV').textContent =
+      streakColor ? `${cap(streakColor==='green'?'Zero':streakColor)} ×${streakLen}` : '—';
+  }
 
   function updateDims() {
     const r = ballLayer.getBoundingClientRect();
@@ -670,8 +811,19 @@
   const easeOutCubic = p => 1 - Math.pow(1-p, 3);
 
   /* ============ Spin ============ */
-  function spin() {
+  const rnd = (a,b) => a + Math.random()*(b-a);
+  const ri  = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+  // each force changes spin length, number of turns and how hard the ball rattles
+  const SPIN_PRESETS = {
+    gentle: { T:()=>rnd(12000,15000), wheel:()=>ri(3,4), ball:()=>ri(6,9),   rest:()=>rnd(0.50,0.60), H:()=>rnd(0.09,0.13) },
+    normal: { T:()=>rnd(9500,13500),  wheel:()=>ri(4,6), ball:()=>ri(9,13),  rest:()=>rnd(0.58,0.70), H:()=>rnd(0.13,0.19) },
+    hard:   { T:()=>rnd(10500,14500), wheel:()=>ri(6,9), ball:()=>ri(13,18), rest:()=>rnd(0.64,0.78), H:()=>rnd(0.17,0.26) },
+  };
+  let selectedStrength = 'normal';
+
+  function spin(strength) {
     if (spinning) return;
+    const cfg = SPIN_PRESETS[strength] || SPIN_PRESETS.normal;
     spinning = true; spinBtn.disabled = true;
     resultMeta.textContent = 'No more bets — round and round she goes…';
     resultNumber.textContent = '…';
@@ -683,10 +835,10 @@
     const target = randIndex(N);
     const number = ORDER[target];
 
-    // randomized character of this spin
-    const T = 9500 + Math.random()*4000;                  // ~9.5–13.5s
-    const wheelTurns = 4 + Math.floor(Math.random()*3);   // 4–6
-    const ballTurns  = 9 + Math.floor(Math.random()*6);   // 9–14 (opposite dir)
+    // character of this spin, driven by the chosen force
+    const T = cfg.T();
+    const wheelTurns = cfg.wheel();
+    const ballTurns  = cfg.ball();
 
     const wheelEnd  = ((-target*SEG) % 360 + 360) % 360;   // winning pocket -> top
     const wheelTotal = wheelTurns*360 + wheelEnd;
@@ -699,8 +851,8 @@
     const tBounce = T - tTrack - tSettle;                  // gravity bounce-down
 
     // ---- gravity bounce schedule: heights shrink, intervals shorten (real physics) ----
-    const restitution = 0.58 + Math.random()*0.12;
-    let H = R * (0.14 + Math.random()*0.07);               // first bounce height (px)
+    const restitution = cfg.rest();
+    let H = R * cfg.H();                                    // first bounce height (px)
     const heights = [];
     while (H > R*0.006 && heights.length < 18) { heights.push(H); H *= restitution; }
     // a bounce's airtime ~ sqrt(height); scale the set to fill the bounce window
@@ -775,16 +927,27 @@
   function finish(number) {
     const color = colorOf(number);
     spinCount++;
+
+    // center result
     resultNumber.textContent = number;
     resultNumber.className = 'result-number num-' + color + ' pop';
     setTimeout(() => resultNumber.classList.remove('pop'), 360);
     resultMeta.textContent = describe(number, color);
 
+    // sidebar "current winner"
+    winnerNum.textContent = number;
+    winnerNum.className = 'winner-num num-' + color + ' pop';
+    setTimeout(() => winnerNum.classList.remove('pop'), 360);
+    winnerSub.textContent = number === 0 ? '★ BIG WIN — ZERO! ★' : describe(number, color);
+
     counts[color]++;
+    freq[number]++; lastSeen[number] = spinCount;
+    if (color === streakColor) streakLen++; else { streakColor = color; streakLen = 1; }
     statRed.textContent = counts.red; statBlack.textContent = counts.black;
     statGreen.textContent = counts.green; statTotal.textContent = spinCount;
+    renderTrends();
 
-    if (emptyMsg && emptyMsg.parentNode) emptyMsg.remove();
+    const em = historyList.querySelector('.empty'); if (em) em.remove();
     const li = document.createElement('li');
     li.innerHTML =
       `<span class="spin-no">#${spinCount}</span>` +
@@ -793,12 +956,58 @@
       `${number!==0 ? ' · ' + (number%2===0?'Even':'Odd') : ''}</span>`;
     historyList.prepend(li);
 
-    const pill = document.createElement('span');
-    pill.className = 'pill num-' + color; pill.textContent = number;
-    recent.prepend(pill);
-    while (recent.children.length > 12) recent.lastChild.remove();
+    if (number === 0) celebrate();
 
     spinning = false; spinBtn.disabled = false;
+  }
+
+  /* ============ Big-win celebration (zero) ============ */
+  function celebrate() {
+    const el = document.getElementById('celebrate');
+    el.classList.add('show');
+    spawnConfetti();
+    fanfare();
+    clearTimeout(celebrate._t);
+    celebrate._t = setTimeout(() => el.classList.remove('show'), 4200);
+  }
+  function spawnConfetti() {
+    const box = document.getElementById('confetti');
+    box.innerHTML = '';
+    const cols = ['#d4af37','#f6e08a','#c1121f','#0a7d34','#ffffff'];
+    for (let i = 0; i < 110; i++) {
+      const p = document.createElement('i');
+      p.style.left = Math.random()*100 + 'vw';
+      p.style.background = cols[(Math.random()*cols.length)|0];
+      p.style.animationDuration = (2.4 + Math.random()*2.2) + 's';
+      p.style.animationDelay = (Math.random()*0.8) + 's';
+      const w = 6 + Math.random()*8;
+      p.style.width = w + 'px';
+      p.style.height = (w*1.5) + 'px';
+      box.appendChild(p);
+    }
+  }
+  function fanfare() {
+    if (!actx) return;
+    const t0 = actx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];   // C-E-G-C-E
+    notes.forEach((f, i) => {
+      const t = t0 + i*0.13;
+      const o = actx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+      const g = actx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.2, t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t+0.45);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t+0.5);
+    });
+    for (let i = 0; i < 8; i++) {                              // sparkle shimmer
+      const t = t0 + 0.1 + Math.random()*0.7;
+      const o = actx.createOscillator(); o.type = 'sine';
+      o.frequency.value = 1800 + Math.random()*1600;
+      const g = actx.createGain();
+      g.gain.setValueAtTime(0.09, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t+0.22);
+    }
   }
 
   const describe = (n,c) => n===0 ? 'Zero — the house pocket!'
@@ -806,15 +1015,44 @@
   const cap = s => s.charAt(0).toUpperCase()+s.slice(1);
 
   /* ============ Controls ============ */
-  spinBtn.addEventListener('click', spin);
+  spinBtn.addEventListener('click', () => spin(selectedStrength));
+
+  // spin-force selector
+  document.querySelectorAll('#strength button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedStrength = btn.dataset.s;
+      document.querySelectorAll('#strength button')
+        .forEach(b => b.classList.toggle('active', b === btn));
+    });
+  });
+
+  // grab & flick the wheel: slow drag = gentle, fast swipe = hard
+  const scene = document.querySelector('.scene');
+  let press = null;
+  scene.addEventListener('pointerdown', e => {
+    if (spinning) return;
+    press = { x: e.clientX, y: e.clientY, t: performance.now() };
+  });
+  window.addEventListener('pointerup', e => {
+    if (spinning || !press) return;
+    const dist = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+    const speed = dist / Math.max(1, performance.now() - press.t);
+    let force = selectedStrength;
+    if (dist > 14) force = speed < 0.45 ? 'gentle' : speed < 1.1 ? 'normal' : 'hard';
+    press = null;
+    spin(force);
+  });
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     historyList.innerHTML = '<li class="empty" id="emptyMsg">No spins yet.</li>';
-    recent.innerHTML = '';
     spinCount = 0; counts.red = counts.black = counts.green = 0;
+    freq.fill(0); lastSeen.fill(0); streakColor = null; streakLen = 0;
     [statRed,statBlack,statGreen,statTotal].forEach(e => e.textContent='0');
+    renderTrends();
     resultNumber.textContent='–'; resultNumber.className='result-number num-green';
     resultMeta.textContent='History cleared — ready for the next round.';
+    winnerNum.textContent='–'; winnerNum.className='winner-num num-green';
+    winnerSub.textContent='Place your bets…';
   });
 
   const soundBtn = document.getElementById('soundBtn');
