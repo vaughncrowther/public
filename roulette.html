@@ -544,24 +544,42 @@
   }
 
   /* ============ Audio (synth, no files) ============ */
-  let actx = null, noiseBuf = null, master = null, rumble = null, soundOn = true;
+  let actx=null, noiseBuf=null, master=null, rumble=null, roll=null, soundOn=true;
+  const canPan = () => !!actx.createStereoPanner;
   function ensureAudio() {
     if (actx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) { soundOn = false; return; }
     actx = new AC();
-    master = actx.createGain();
-    master.gain.value = soundOn ? 0.9 : 0;
-    master.connect(actx.destination);
+    // master -> (dry + reverb) -> out   ... reverb makes it sound like a real room
+    master = actx.createGain(); master.gain.value = soundOn ? 0.9 : 0;
+    const dry = actx.createGain(); dry.gain.value = 0.85;
+    const conv = actx.createConvolver(); conv.buffer = makeImpulse(1.4, 2.6);
+    const wet = actx.createGain(); wet.gain.value = 0.32;
+    master.connect(dry); dry.connect(actx.destination);
+    master.connect(conv); conv.connect(wet); wet.connect(actx.destination);
     const len = actx.sampleRate * 1.5;
     noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
   }
+  function makeImpulse(sec, decay) {
+    const rate = actx.sampleRate, len = Math.floor(rate*sec);
+    const imp = actx.createBuffer(2, len, rate);
+    for (let ch=0; ch<2; ch++) {
+      const d = imp.getChannelData(ch);
+      for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, decay);
+    }
+    return imp;
+  }
   function applyMute() {
     if (actx && master) master.gain.setTargetAtTime(soundOn ? 0.9 : 0, actx.currentTime, 0.04);
   }
-  // subtle low wheel hum (NOT broadband — no "rainfall")
+  function panNode() {
+    if (canPan()) return actx.createStereoPanner();
+    const g = actx.createGain(); g.pan = { value:0, setTargetAtTime(){} }; return g; // fallback
+  }
+  // beds: low wheel rumble + a resonant "rolling marble" whirr on the rim
   function startBeds() {
     if (!actx) return;
     rumble = {};
@@ -570,49 +588,72 @@
     rumble.g  = actx.createGain(); rumble.g.gain.value = 0;
     rumble.src.connect(rumble.lp); rumble.lp.connect(rumble.g); rumble.g.connect(master);
     rumble.src.start();
+
+    roll = {};
+    roll.osc = actx.createOscillator(); roll.osc.type='sawtooth'; roll.osc.frequency.value=120;
+    roll.osc2 = actx.createOscillator(); roll.osc2.type='sawtooth'; roll.osc2.frequency.value=123;
+    roll.bp = actx.createBiquadFilter(); roll.bp.type='bandpass'; roll.bp.Q.value=2.4; roll.bp.frequency.value=500;
+    roll.g  = actx.createGain(); roll.g.gain.value = 0;
+    roll.pan = panNode();
+    roll.osc.connect(roll.bp); roll.osc2.connect(roll.bp);
+    roll.bp.connect(roll.g); roll.g.connect(roll.pan); roll.pan.connect(master);
+    roll.osc.start(); roll.osc2.start();
   }
-  function updateBeds(wheelNorm) {
-    if (!actx) return;
-    rumble?.g.gain.setTargetAtTime(wheelNorm*0.06, actx.currentTime, 0.1);
-  }
-  function stopBeds() {
-    if (!actx || !rumble) return;
-    rumble.g.gain.setTargetAtTime(0, actx.currentTime, 0.25);
-    try { rumble.src.stop(actx.currentTime + 0.7); } catch(e){}
-    rumble = null;
-  }
-  // a single ball-on-fret "clack": woody pitched body + tiny click transient
-  function clack(vol, pitch) {
+  function updateBeds(wheelNorm, rollNorm, pan) {
     if (!actx) return;
     const t = actx.currentTime;
-    const o = actx.createOscillator(); o.type = 'triangle';
-    o.frequency.setValueAtTime(pitch, t);
-    o.frequency.exponentialRampToValueAtTime(pitch*0.55, t+0.03);
-    const g = actx.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0006, t+0.04);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.05);
-
-    const s = actx.createBufferSource(); s.buffer = noiseBuf;
-    s.playbackRate.value = 1.5 + Math.random();
-    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 2600;
-    const g2 = actx.createGain();
-    g2.gain.setValueAtTime(vol*0.5, t);
-    g2.gain.exponentialRampToValueAtTime(0.0005, t+0.012);
-    s.connect(hp); hp.connect(g2); g2.connect(master); s.start(t); s.stop(t+0.02);
+    rumble?.g.gain.setTargetAtTime(wheelNorm*0.06, t, 0.1);
+    if (roll) {
+      roll.g.gain.setTargetAtTime(rollNorm*0.06, t, 0.05);
+      roll.bp.frequency.setTargetAtTime(320 + rollNorm*760, t, 0.05);
+      roll.osc.frequency.setTargetAtTime(95 + rollNorm*110, t, 0.05);
+      roll.pan.pan.setTargetAtTime(pan, t, 0.05);
+    }
   }
-  // ball dropping into the pocket: low woody thud
+  function stopBeds() {
+    if (!actx) return;
+    const t = actx.currentTime;
+    [rumble, roll].forEach(n => { if (n) { n.g.gain.setTargetAtTime(0, t, 0.25); } });
+    try { rumble && rumble.src.stop(t+0.7); } catch(e){}
+    try { roll && (roll.osc.stop(t+0.7), roll.osc2.stop(t+0.7)); } catch(e){}
+    rumble = roll = null;
+  }
+  // ball-on-fret clack: bright resonant ping + woody body + click transient, panned
+  function clack(vol, pitch, pan) {
+    if (!actx) return;
+    const t = actx.currentTime;
+    const p = panNode(); if (p.pan.setValueAtTime) p.pan.setValueAtTime(pan||0, t); else p.pan.value = pan||0;
+    p.connect(master);
+    // resonant ping
+    const o1 = actx.createOscillator(); o1.type='sine'; o1.frequency.setValueAtTime(pitch, t);
+    o1.frequency.exponentialRampToValueAtTime(pitch*0.8, t+0.05);
+    const g1 = actx.createGain(); g1.gain.setValueAtTime(vol, t);
+    g1.gain.exponentialRampToValueAtTime(0.0006, t+0.06);
+    o1.connect(g1); g1.connect(p); o1.start(t); o1.stop(t+0.08);
+    // woody body
+    const o2 = actx.createOscillator(); o2.type='triangle'; o2.frequency.setValueAtTime(pitch*0.5, t);
+    const g2 = actx.createGain(); g2.gain.setValueAtTime(vol*0.7, t);
+    g2.gain.exponentialRampToValueAtTime(0.0006, t+0.035);
+    o2.connect(g2); g2.connect(p); o2.start(t); o2.stop(t+0.05);
+    // click transient
+    const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 1.5 + Math.random();
+    const hp = actx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 2800;
+    const g3 = actx.createGain(); g3.gain.setValueAtTime(vol*0.5, t);
+    g3.gain.exponentialRampToValueAtTime(0.0005, t+0.01);
+    s.connect(hp); hp.connect(g3); g3.connect(p); s.start(t); s.stop(t+0.02);
+  }
+  // ball dropping home: low woody thud with a touch of room
   function thud() {
     if (!actx) return;
     const t = actx.currentTime;
     const o = actx.createOscillator(); o.type='sine';
-    o.frequency.setValueAtTime(180, t);
-    o.frequency.exponentialRampToValueAtTime(58, t+0.2);
+    o.frequency.setValueAtTime(190, t);
+    o.frequency.exponentialRampToValueAtTime(55, t+0.22);
     const g = actx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.32, t+0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, t+0.3);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.34);
+    g.gain.linearRampToValueAtTime(0.34, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.32);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+0.36);
   }
 
   /* ============ Random (fair) ============ */
@@ -682,17 +723,18 @@
 
       // ---- ball angle (decelerating, opposite sense) ----
       const ballAngle = ballEnd - ballTotal*(1 - easeOutQuint(p));
+      const pan = Math.max(-1, Math.min(1, Math.cos(ballAngle*Math.PI/180))) * 0.85;
 
-      let radius = R_OUTER, lift = 0;
+      let radius = R_OUTER, lift = 0, rollNorm = 0;
 
       if (elapsed < tTrack) {
-        // riding the rim with a faint wobble
+        // riding the rim with a faint wobble — continuous rolling whirr + fret rattle
         radius = R_OUTER - 0.012*Math.sin(elapsed/45);
-        // rapid fret rattle, spacing out as the ball slows
+        rollNorm = decel;
         const fret = Math.floor(-ballAngle / SEG);
         if (fret !== lastFret && (now - lastTickMs) > 20) {
           const sp = 1 - elapsed/tTrack;                  // 1..0
-          clack(0.05 + sp*0.11, 1500 + sp*1300);
+          clack(0.05 + sp*0.11, 1500 + sp*1300, pan);
           lastFret = fret; lastTickMs = now;
         }
       } else if (elapsed < tTrack + tBounce) {
@@ -700,13 +742,14 @@
         const bt = elapsed - tTrack;
         const q  = bt / tBounce;
         radius = R_OUTER + (R_RING - R_OUTER)*easeOutCubic(q);
+        rollNorm = decel * Math.max(0, 1 - q/0.4);        // whirr fades as it leaves the rim
         let seg = 0;
         while (seg < starts.length-1 && bt >= starts[seg+1]) seg++;
         const tau = Math.min(1, (bt - starts[seg]) / durs[seg]);
         lift = 4 * heights[seg] * tau * (1 - tau);        // parabolic arc
         if (seg !== lastSeg) {                            // a new bounce just landed
           const v = 0.18 * Math.pow(restitution, seg) + 0.05;
-          clack(Math.max(v, 0.05), 1300 - seg*30);
+          clack(Math.max(v, 0.05), 1300 - seg*30, pan);
           lastSeg = seg;
         }
       } else {
@@ -714,13 +757,13 @@
       }
 
       setBall(ballAngle, radius, lift);
-      updateBeds(decel);
+      updateBeds(decel, rollNorm, pan);
 
       if (p < 1) {
         requestAnimationFrame(frame);
       } else {
         setBall(ballEnd, R_RING, 0);
-        clack(0.1, 900);
+        clack(0.1, 900, pan);
         thud();
         stopBeds();
         finish(number);
