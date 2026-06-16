@@ -820,25 +820,28 @@
     g2.gain.exponentialRampToValueAtTime(0.0005, t + 0.01);
     o.connect(g2); g2.connect(master); o.start(t); o.stop(t + 0.02);
   }
-  // hollow wooden knock — ball dropping/bouncing in the pockets (noise-resonant, NO pitch glide)
+  // wooden knock — ball dropping/bouncing in the pockets. Pure FILTERED NOISE (no oscillators,
+  // no resonant ringing) so it reads as a dry wood "thock", never a tone/laser.
   function hollow(vol, pitch, pan, when) {
     if (!actx) return;
     const t = actx.currentTime + (when || 0);
     const p = panNode(); if (p.pan.setValueAtTime) p.pan.setValueAtTime(pan||0, t); else p.pan.value = pan||0;
     p.connect(master);
-    // two resonant noise bursts at inharmonic ratios = a hollow wood "tok"
-    [[pitch, 9, 0.11, 1.0], [pitch*2.3, 7, 0.06, 0.45]].forEach(([f, q, d, a]) => {
-      const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.5 + Math.random()*0.3;
-      const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
-      const g = actx.createGain(); g.gain.setValueAtTime(vol*a, t);
-      g.gain.exponentialRampToValueAtTime(0.0004, t + d);
-      s.connect(bp); bp.connect(g); g.connect(p); s.start(t); s.stop(t + d + 0.03);
-    });
-    // low body thump (sine, steady — gives weight without the sci-fi sweep)
-    const o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = pitch*0.7;
-    const g2 = actx.createGain(); g2.gain.setValueAtTime(vol*0.5, t);
-    g2.gain.exponentialRampToValueAtTime(0.0005, t + 0.06);
-    o.connect(g2); g2.connect(p); o.start(t); o.stop(t + 0.08);
+    // main knock: noise -> lowpass (dark/woody) -> gentle peaking bump for body
+    const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.5 + Math.random()*0.4;
+    const lp = actx.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.value = Math.min(1400, pitch*4.5); lp.Q.value = 0.6;
+    const peak = actx.createBiquadFilter(); peak.type = 'peaking';
+    peak.frequency.value = pitch; peak.Q.value = 1.1; peak.gain.value = 9;
+    const g = actx.createGain(); g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0004, t + 0.05);
+    s.connect(lp); lp.connect(peak); peak.connect(g); g.connect(p); s.start(t); s.stop(t + 0.07);
+    // low thump for weight (very dark, very short)
+    const s2 = actx.createBufferSource(); s2.buffer = noiseBuf; s2.playbackRate.value = 0.4 + Math.random()*0.3;
+    const lp2 = actx.createBiquadFilter(); lp2.type = 'lowpass'; lp2.frequency.value = 180;
+    const g2 = actx.createGain(); g2.gain.setValueAtTime(vol*0.7, t);
+    g2.gain.exponentialRampToValueAtTime(0.0004, t + 0.04);
+    s2.connect(lp2); lp2.connect(g2); g2.connect(p); s2.start(t); s2.stop(t + 0.06);
   }
   // ball dropping home: low woody thud with a touch of room
   function thud() {
@@ -991,7 +994,7 @@
       const wIdx = Math.floor(wheelPos / SEG);
       if (wIdx > lastWheelIdx && wheelVel > 6) {
         const crossed = Math.min(wIdx - lastWheelIdx, 6);
-        const v = 0.10 + Math.min(0.07, wheelVel/3500);
+        const v = 0.15 + Math.min(0.09, wheelVel/3000);
         for (let k = 0; k < crossed; k++) wheelTick(v, (k/crossed)*dt);
       }
       lastWheelIdx = wIdx;
