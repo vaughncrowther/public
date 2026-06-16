@@ -800,6 +800,26 @@
     g3.gain.exponentialRampToValueAtTime(0.0005, t+0.018);
     s.connect(bp); bp.connect(g3); g3.connect(p); s.start(t); s.stop(t+0.03);
   }
+  // crisp wheel-of-fortune ratchet tick — one per number as the wheel turns past the marker
+  function wheelTick(vol, when) {
+    if (!actx) return;
+    const t = actx.currentTime + (when || 0);
+    // bright short click
+    const s = actx.createBufferSource(); s.buffer = noiseBuf;
+    s.playbackRate.value = 1.1 + Math.random()*0.3;
+    const bp = actx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value = 2300 + Math.random()*300; bp.Q.value = 3;
+    const g = actx.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0004, t + 0.018);
+    s.connect(bp); bp.connect(g); g.connect(master); s.start(t); s.stop(t + 0.03);
+    // tiny resonant "tick" for the ratchet snap
+    const o = actx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(1700, t);
+    const g2 = actx.createGain();
+    g2.gain.setValueAtTime(vol*0.28, t);
+    g2.gain.exponentialRampToValueAtTime(0.0005, t + 0.01);
+    o.connect(g2); g2.connect(master); o.start(t); o.stop(t + 0.02);
+  }
   // ball dropping home: low woody thud with a touch of room
   function thud() {
     if (!actx) return;
@@ -906,7 +926,7 @@
     let radius = R_OUTER, z = 0, vz = 0;
     let phase = 'rim', descT = 0;
     let resultIdx = -1, rideOffset = 0, snapFrom = 0, snapStart = 0;
-    let lastFret = 0, lastBounceMs = 0, last = performance.now(), t0 = last;
+    let lastFret = 0, lastBounceMs = 0, lastWheelIdx = 0, last = performance.now(), t0 = last;
 
     const baseOff = target*SEG - 90;                     // target pocket on the wheel face
     const capture = () => {                              // ball drops home into the pocket
@@ -927,6 +947,15 @@
       wheelVel = Math.max(0, wheelVel - wheelDecel*dt);
       wheelPos += wheelVel*dt;
       wheelFace.style.transform = `rotateZ(${wheelPos}deg)`;
+
+      // clean ratchet click — one per number as the wheel passes the marker, slowing with it
+      const wIdx = Math.floor(wheelPos / SEG);
+      if (wIdx > lastWheelIdx && wheelVel > 6) {
+        const crossed = Math.min(wIdx - lastWheelIdx, 6);
+        const v = 0.05 + Math.min(0.05, wheelVel/4500);
+        for (let k = 0; k < crossed; k++) wheelTick(v, (k/crossed)*dt);
+      }
+      lastWheelIdx = wIdx;
 
       if (phase === 'rim') {
         ballVel += ballDecel*dt;                         // magnitude shrinks (ball is negative)
