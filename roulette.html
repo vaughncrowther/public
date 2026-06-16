@@ -878,16 +878,35 @@
     if (n < 20) return EN_ONES[n];
     return EN_TENS[Math.floor(n/10)] + (n%10 ? '-' + EN_ONES[n%10] : '');
   }
-  function speakWinner(number) {
+  function say(text, rate, pitch) {
     if (!soundOn || !('speechSynthesis' in window)) return;
-    // English words spoken by a French voice => English with a French accent
-    const color = RED.has(number) ? 'red' : 'black';
-    const parity = number % 2 === 0 ? 'even' : 'odd';
-    const text = number === 0 ? 'zero' : `${enWords(number)}, ${color}, ${parity}`;
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'fr-FR'; u.rate = 0.82; u.pitch = 1.05;   // slow & smooth, French accent
+    u.lang = 'fr-FR'; u.rate = rate || 0.9; u.pitch = pitch || 1.05;  // French accent
     const v = frenchVoice(); if (v) u.voice = v;
     try { speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (_) {}
+  }
+  function speakWinner(number) {
+    const color = RED.has(number) ? 'red' : 'black';
+    const parity = number % 2 === 0 ? 'even' : 'odd';
+    say(number === 0 ? 'zero' : `${enWords(number)}, ${color}, ${parity}`, 0.82, 1.05);
+  }
+  // service-bell "ding" — additive bell partials
+  function ding() {
+    if (!actx) return;
+    const t = actx.currentTime, f0 = 1245;
+    [[1.0,1.0,1.3],[2.76,0.4,0.8],[5.4,0.16,0.45]].forEach(([r,a,d]) => {
+      const o = actx.createOscillator(); o.type='sine'; o.frequency.value = f0*r;
+      const g = actx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(0.22*a, t+0.004);
+      g.gain.exponentialRampToValueAtTime(0.0005, t+d);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t+d+0.05);
+    });
+  }
+  // croupier's "last bets" call, just before the ball drops
+  function lastBets() {
+    ding();
+    setTimeout(() => say('Last bets', 0.95, 1.05), 280);
   }
 
   /* ============ Random (fair) ============ */
@@ -955,7 +974,7 @@
     let radius = R_OUTER, z = 0, vz = 0;
     let phase = 'rim', descT = 0;
     let resultIdx = -1, rideOffset = 0, snapFrom = 0, snapStart = 0;
-    let lastFret = 0, lastBounceMs = 0, lastWheelIdx = 0, last = performance.now(), t0 = last;
+    let lastFret = 0, lastBounceMs = 0, lastWheelIdx = 0, lastBetsCalled = false, last = performance.now(), t0 = last;
 
     const baseOff = target*SEG - 90;                     // target pocket on the wheel face
     const capture = () => {                              // ball drops home into the pocket
@@ -999,6 +1018,8 @@
             clack(0.018 + sp*0.025, 300 + sp*240, panOf(ballPos), (k/crossed)*dt);
           lastFret = fp;
         }
+        // croupier "last bets" + bell, while the ball is still circling but about to drop
+        if (!lastBetsCalled && Math.abs(ballVel) < omegaDrop*1.7) { lastBetsCalled = true; lastBets(); }
         if (ballVel >= -omegaDrop) { phase = 'descend'; descT = 0; }
       } else if (phase === 'descend') {
         descT += dt;
