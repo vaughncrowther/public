@@ -761,7 +761,7 @@
     const t = actx.currentTime;
     rumble?.g.gain.setTargetAtTime(wheelNorm*0.06, t, 0.1);
     if (roll) {
-      roll.g.gain.setTargetAtTime(rollNorm*0.022, t, 0.05);
+      roll.g.gain.setTargetAtTime(rollNorm*0.012, t, 0.05);
       roll.bp.frequency.setTargetAtTime(200 + rollNorm*420, t, 0.05);
       roll.osc.frequency.setTargetAtTime(80 + rollNorm*90, t, 0.05);
       roll.pan.pan.setTargetAtTime(pan, t, 0.05);
@@ -820,34 +820,25 @@
     g2.gain.exponentialRampToValueAtTime(0.0005, t + 0.01);
     o.connect(g2); g2.connect(master); o.start(t); o.stop(t + 0.02);
   }
-  // hollow "plonk" — the ball dropping/bouncing in the wooden pockets (deep, resonant, hollow)
+  // hollow wooden knock — ball dropping/bouncing in the pockets (noise-resonant, NO pitch glide)
   function hollow(vol, pitch, pan, when) {
     if (!actx) return;
     const t = actx.currentTime + (when || 0);
     const p = panNode(); if (p.pan.setValueAtTime) p.pan.setValueAtTime(pan||0, t); else p.pan.value = pan||0;
     p.connect(master);
-    // pitch-dropping body — the hollow "tok/plonk"
-    const o = actx.createOscillator(); o.type = 'sine';
-    o.frequency.setValueAtTime(pitch, t);
-    o.frequency.exponentialRampToValueAtTime(pitch*0.45, t + 0.06);
-    const g = actx.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0005, t + 0.16);          // longer ring = hollow
-    o.connect(g); g.connect(p); o.start(t); o.stop(t + 0.18);
-    // inharmonic overtone gives the wooden/hollow character
-    const o2 = actx.createOscillator(); o2.type = 'triangle';
-    o2.frequency.setValueAtTime(pitch*2.4, t);
-    o2.frequency.exponentialRampToValueAtTime(pitch*1.5, t + 0.05);
-    const g2 = actx.createGain();
-    g2.gain.setValueAtTime(vol*0.4, t);
-    g2.gain.exponentialRampToValueAtTime(0.0005, t + 0.09);
-    o2.connect(g2); g2.connect(p); o2.start(t); o2.stop(t + 0.1);
-    // soft low attack click
-    const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.4 + Math.random()*0.3;
-    const bp = actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = pitch*2.2; bp.Q.value = 0.8;
-    const g3 = actx.createGain(); g3.gain.setValueAtTime(vol*0.3, t);
-    g3.gain.exponentialRampToValueAtTime(0.0005, t + 0.02);
-    s.connect(bp); bp.connect(g3); g3.connect(p); s.start(t); s.stop(t + 0.03);
+    // two resonant noise bursts at inharmonic ratios = a hollow wood "tok"
+    [[pitch, 9, 0.11, 1.0], [pitch*2.3, 7, 0.06, 0.45]].forEach(([f, q, d, a]) => {
+      const s = actx.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.5 + Math.random()*0.3;
+      const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      const g = actx.createGain(); g.gain.setValueAtTime(vol*a, t);
+      g.gain.exponentialRampToValueAtTime(0.0004, t + d);
+      s.connect(bp); bp.connect(g); g.connect(p); s.start(t); s.stop(t + d + 0.03);
+    });
+    // low body thump (sine, steady — gives weight without the sci-fi sweep)
+    const o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = pitch*0.7;
+    const g2 = actx.createGain(); g2.gain.setValueAtTime(vol*0.5, t);
+    g2.gain.exponentialRampToValueAtTime(0.0005, t + 0.06);
+    o.connect(g2); g2.connect(p); o.start(t); o.stop(t + 0.08);
   }
   // ball dropping home: low woody thud with a touch of room
   function thud() {
@@ -1000,7 +991,7 @@
       const wIdx = Math.floor(wheelPos / SEG);
       if (wIdx > lastWheelIdx && wheelVel > 6) {
         const crossed = Math.min(wIdx - lastWheelIdx, 6);
-        const v = 0.05 + Math.min(0.05, wheelVel/4500);
+        const v = 0.10 + Math.min(0.07, wheelVel/3500);
         for (let k = 0; k < crossed; k++) wheelTick(v, (k/crossed)*dt);
       }
       lastWheelIdx = wIdx;
@@ -1015,7 +1006,7 @@
           const crossed = Math.min(fp - lastFret, 6);
           const sp = Math.min(1, Math.abs(ballVel)/700);
           for (let k = 0; k < crossed; k++)
-            clack(0.018 + sp*0.025, 300 + sp*240, panOf(ballPos), (k/crossed)*dt);
+            clack(0.008 + sp*0.012, 300 + sp*240, panOf(ballPos), (k/crossed)*dt);
           lastFret = fp;
         }
         // croupier "last bets" + bell, while the ball is still circling but about to drop
